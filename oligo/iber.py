@@ -175,10 +175,10 @@ class Iber:
         energy_cost = 0
         for i in range(len(consumptions)):
             energy_cost = energy_cost + (consumptions[i]*costs_per_kwh[i])
-        power_cost = pot * ((38.043426+3.113)/365) * ndays
+        power_cost = pot * ((38.043426+3.113)/366) * ndays
         energy_and_power_cost = energy_cost + power_cost
         energy_tax = energy_and_power_cost*0.0511269632
-        equipment_cost = ndays * 0.026557
+        equipment_cost = ndays * (0.81*12/366)
         total =  energy_and_power_cost + energy_tax + equipment_cost
         total_plus_vat = total * 1.21
         print("Power cost: "+'{0:.2f}'.format(power_cost)+ "€")
