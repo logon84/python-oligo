@@ -168,13 +168,13 @@ class Iber:
     def calculate_invoice_20dha_PVPC(self, token, index):
         """Returns cost of same consumptions on pvpc . Index 0 means current consumption not yet invoiced. Bigger indexes returns costs of every already created invoice"""
         consumptions, start_date, end_date = self.get_invoice_consumption(index)
-        costs_per_kw = self.get_ree_20dha_data(token,start_date,end_date)
+        costs_per_kwh = self.get_ree_20dha_data(token,start_date,end_date)
         ndays = (end_date - start_date).days+1
         pot = (self.contract()['potMaxima'])/1000
         print("\n\nCOSTE PVPC 2.0DHA\nDESDE: "+start_date.strftime('%d-%m-%Y')+"\nHASTA: "+end_date.strftime('%d-%m-%Y')+"\nDIAS: "+str(ndays)+"\n\n")
         energy_cost = 0
         for i in range(len(consumptions)):
-            energy_cost = energy_cost + (consumptions[i]*costs_per_kw[i])
+            energy_cost = energy_cost + (consumptions[i]*costs_per_kwh[i])
         power_cost = pot * ((38.043426+3.113)/365) * ndays
         energy_and_power_cost = energy_cost + power_cost
         energy_tax = energy_and_power_cost*0.0511269632
