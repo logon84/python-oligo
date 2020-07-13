@@ -19,6 +19,6 @@ connection.login(user_i_de, passw_i_de)
 #watt = connection.get_hourly_consumption("15-06-2020","02-07-2020")
 #watt = connection.get_invoice_consumption(1)
 #watt = connection.get_ree_20dha_data(ree_token,"15-06-2020","02-07-2020")
-watt = connection.calculate_invoice_20dha_PVPC(ree_token,0)
+cost = connection.calculate_invoice_20dha_PVPC(ree_token,0)
 
-print(watt)
+print(cost)
