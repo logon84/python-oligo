@@ -90,8 +90,8 @@ class Iber:
         json_response = response.json()
         return json_response['valMagnitud']+"kw"
 
-    def get_invoices(self,index):
-        """Returns invoice list."""
+    def get_invoice(self,index):
+        """Returns invoice data."""
         self.__check_session()
         response = self.__session.request("GET", self.__consumption_by_invoice_url, headers=self.__headers_i_de)
         if response.status_code != 200:
@@ -110,9 +110,7 @@ class Iber:
         if not response.text:
             raise NoResponseException
         json_response = response.json()
-        max_date = json_response['fechaMaxima']
-        max_date = max_date[:10]
-        max_date = datetime.strptime(max_date, '%d-%m-%Y')
+        max_date = datetime.strptime(json_response['fechaMaxima'], '%d-%m-%Y%H:%M:%S')
         return max_date
 
     def get_hourly_consumption(self,start_date,end_date):
@@ -137,13 +135,13 @@ class Iber:
         """Returns consumption by invoice. Index 0 means current consumption not yet invoiced. Bigger indexes returns consumption by every already created invoice"""
         self.__check_session()
         if index == 0: #get current cost
-            last_invoice = self.get_invoices(0) #get last invoice
+            last_invoice = self.get_invoice(0) #get last invoice
             start_date = last_invoice['fechaHasta'] #get last day used in the last invoice to use next day as starting day for current cost
             start_date = datetime.strptime(start_date, '%d/%m/%Y')
             start_date = start_date + relativedelta(days=1)
             end_date = self.get_last_day_with_recorded_data()
         else:
-            invoice = self.get_invoices(index-1)
+            invoice = self.get_invoice(index-1)
             start_date = invoice['fechaDesde']
             start_date = datetime.strptime(start_date, '%d/%m/%Y')
             end_date = invoice['fechaHasta']
