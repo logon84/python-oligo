@@ -33,11 +33,9 @@ class Iber:
     __contracts_url = __domain + "/consumidores/rest/cto/listaCtos/"
     __contract_detail_url = __domain + "/consumidores/rest/detalleCto/detalle/"
     __contract_selection_url = __domain + "/consumidores/rest/cto/seleccion/"
-    now = datetime.now()
-    today = now.strftime("%d-%m-%Y%H:%M:%S")
-    twoyearsago =  now - relativedelta(years=2)
-    twoyearsago = twoyearsago.strftime("%d-%m-%Y%H:%M:%S")
-    __consumption_by_invoice_url = __domain + "/consumidores/rest/consumoNew/obtenerDatosFacturasConsumo/fechaInicio/{0}/fechaFinal/{1}".format(twoyearsago,today)
+    today = datetime.now()
+    twoyearsago =  today - relativedelta(years=2)
+    __consumption_by_invoice_url = __domain + "/consumidores/rest/consumoNew/obtenerDatosFacturasConsumo/fechaInicio/{0}/fechaFinal/{1}".format(twoyearsago.strftime("%d-%m-%Y%H:%M:%S"),today.strftime("%d-%m-%Y%H:%M:%S"))
     __consumption_max_date_url = __domain + "/consumidores/rest/consumoNew/obtenerLimiteFechasConsumo"
     __consumption_between_dates_csv_url = __domain + "/consumidores/rest/consumoNew/exportarACSVPeriodoConsumo/fechaInicio/{0}/fechaFinal/{1}/tipo/horaria/"
     __headers_i_de = {
@@ -139,7 +137,7 @@ class Iber:
             start_date = last_invoice['fechaHasta'] #get last day used in the last invoice to use next day as starting day for current cost
             start_date = datetime.strptime(start_date, '%d/%m/%Y')
             start_date = start_date + relativedelta(days=1)
-            end_date = self.get_last_day_with_recorded_data()
+            end_date = self.today
         else:
             invoice = self.get_invoice(index-1)
             start_date = invoice['fechaDesde']
