@@ -201,7 +201,7 @@ class Iber:
         energy_cost_20DHA = 0
         for i in range(len(consumptions)):
             energy_cost_20 = energy_cost_20 + (consumptions[i]*costs_per_kwh_20[i])
-            energy_cost_20DHA = energy_cost_20DHA + (consumptions[i]*costs_per_kwh_20DHA[i])      
+            energy_cost_20DHA = energy_cost_20DHA + (consumptions[i]*costs_per_kwh_20DHA[i])    
         power_cost = pot * ((38.043426+3.113)/366) * ndays
         energy_and_power_cost_20 = energy_cost_20 + power_cost
         energy_and_power_cost_20DHA = energy_cost_20DHA + power_cost
@@ -212,14 +212,25 @@ class Iber:
         total_20DHA =  energy_and_power_cost_20DHA + energy_tax_20DHA + equipment_cost
         total_plus_vat_20 = total_20 * 1.21
         total_plus_vat_20DHA = total_20DHA * 1.21
-        print("PVPC 2.0A price\t\t\tPVPC 2.0DHA price")
-        print("------------------------------------------------------------")
-        print("Power cost 2.0: "+'{0:.2f}'.format(power_cost)+ "€\t\tPower cost 2.0DHA: "+'{0:.2f}'.format(power_cost)+"€")
-        print("Energy cost: "+'{0:.2f}'.format(energy_cost_20)+ "€\t\tEnergy cost: "+'{0:.2f}'.format(energy_cost_20DHA)+"€")
-        print("Electric tax: "+'{0:.2f}'.format(energy_tax_20)+ "€\t\tElectric tax: "+'{0:.2f}'.format(energy_tax_20DHA)+"€")
-        print("Measure equipments: " +'{0:.2f}'.format(equipment_cost)+ "€\tMeasure equipments: " +'{0:.2f}'.format(equipment_cost)+"€")
-        print("VAT: " +'{0:.2f}'.format(total_20*0.21)+ "€\t\t\tVAT: " +'{0:.2f}'.format(total_20DHA*0.21)+"€")
-        return "TOTAL: " + '{0:.2f}'.format(total_plus_vat_20) + "€\t\t\tTOTAL: " + '{0:.2f}'.format(total_plus_vat_20DHA)+"€\n\n"
+#####################_____OTHER_COMPARISON (fill values)_____###############################
+        power_cost_other = pot * (38.043426/366) * ndays
+        energy_cost_other = p1 * 0.161 + p2 * 0.082
+        energy_and_power_cost_other = energy_cost_other + power_cost_other
+        energy_tax_other = energy_and_power_cost_other*0.0511269632
+        equipment_cost_other = ndays * 0.026557
+        social_bonus = 0.02 * ndays
+        total_other = energy_and_power_cost_other + energy_tax_other + equipment_cost_other + social_bonus
+        total_plus_vat_other = total_other * 1.21
+############################################################################################
+
+        print("PVPC 2.0A price\t\t\tPVPC 2.0DHA price\t\tSOM ENERGIA DHA price")
+        print("----------------------------------------------------------------------------------")
+        print("Power cost 2.0: "+'{0:.2f}'.format(power_cost)+ "€\t\tPower cost 2.0DHA: "+'{0:.2f}'.format(power_cost)+"€\tPower cost 2.0DHA: "+'{0:.2f}'.format(power_cost_other)+"€")
+        print("Energy cost: "+'{0:.2f}'.format(energy_cost_20)+ "€\t\tEnergy cost: "+'{0:.2f}'.format(energy_cost_20DHA)+"€\t\tEnergy cost: "+'{0:.2f}'.format(energy_cost_other)+"€")
+        print("Electric tax: "+'{0:.2f}'.format(energy_tax_20)+ "€\t\tElectric tax: "+'{0:.2f}'.format(energy_tax_20DHA)+"€\t\tElectric tax: "+'{0:.2f}'.format(energy_tax_other)+"€")
+        print("Measure equipments: " +'{0:.2f}'.format(equipment_cost)+ "€\tMeasure equipments: " +'{0:.2f}'.format(equipment_cost)+"€\tMeasure equipments: "+'{0:.2f}'.format(equipment_cost_other)+"€")
+        print("VAT: " +'{0:.2f}'.format(total_20*0.21)+ "€\t\t\tVAT: " +'{0:.2f}'.format(total_20DHA*0.21)+"€\t\t\tVAT: " +'{0:.2f}'.format(total_other*0.21)+"€")
+        return "TOTAL: " + '{0:.2f}'.format(total_plus_vat_20) + "€\t\t\tTOTAL: " + '{0:.2f}'.format(total_plus_vat_20DHA)+"€\t\t\tTOTAL: " + '{0:.2f}'.format(total_plus_vat_other)+"€\n\n"
 
     def icpstatus(self):
         """Returns the status of your ICP."""
