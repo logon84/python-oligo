@@ -45,7 +45,7 @@ class Iber:
         'cache-control': "no-cache"
     }
 
-    __ree_api_url = "https://api.esios.ree.es/indicators/1014?start_date=\"{0}\"T01:00:00&end_date=\"{1}\"T24:00:00"
+    __ree_api_url = "https://api.esios.ree.es/indicators/{0}?start_date=\"{1}\"T00:00:00&end_date=\"{2}\"T23:00:00"
     __headers_ree = {
         'User-Agent': "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Ubuntu Chromium/77.0.3865.90 Chrome/77.0.3865.90 Safari/537.36",
         'accept': "application/json; application/vnd.esios-api-v1+json",
@@ -123,11 +123,25 @@ class Iber:
         if not response.text:
             raise NoResponseException
         consumptions = []
+        p1 = 0
+        p2 = 0
         csvdata = StringIO(response.text)
         next(csvdata)
         for line in csvdata:
-            consumptions.append(float(line.split(";")[3])/1000)
-        return consumptions, start_date, end_date
+            curr_hour = int(line.split(";")[1][11:13])
+            curr_consumption = int(line.split(";")[3])/1000
+            consumptions.append(curr_consumption)
+            if line.split(";")[2] == '0':			#winter hours consumption
+                if 12 < curr_hour <= 22:
+                     p1 = p1 + curr_consumption #peak hours consumption
+                else:
+                     p2 = p2 + curr_consumption #low hours consumption
+            else:		#summer hours consumption
+                if 13 < curr_hour <= 23:
+                     p1 = p1 + curr_consumption #peak hours consumption
+                else:
+                     p2 = p2 + curr_consumption #low hours consumption
+        return consumptions, start_date, end_date, p1, p2
 
     def get_invoice_consumption(self,index):
         """Returns consumption by invoice. Index 0 means current consumption not yet invoiced. Bigger indexes returns consumption by every already created invoice"""
@@ -144,45 +158,68 @@ class Iber:
             start_date = datetime.strptime(start_date, '%d/%m/%Y')
             end_date = invoice['fechaHasta']
             end_date = datetime.strptime(end_date, '%d/%m/%Y')
-        consumptions, start_date, end_date = self.get_hourly_consumption(start_date,end_date)
-        return consumptions, start_date, end_date
+        consumptions, start_date, end_date, p1, p2 = self.get_hourly_consumption(start_date,end_date)
+        return consumptions, start_date, end_date, p1, p2
 
-    def get_ree_20dha_data(self,token,start_date,end_date):
-        """Returns 2.0DHA prices from REE"""
+    def get_ree_data(self,token,start_date,end_date):
+        """Returns energy prices from REE"""
+        IDprices20 = '1013'
+        IDprices20DHA = '1014'
         self.__headers_ree['Authorization'] = "Token token=" + token
-        response = self.__session.request("GET", self.__ree_api_url.format(str(start_date.strftime('%Y-%m-%d')),str(end_date.strftime('%Y-%m-%d'))), headers=self.__headers_ree)
+
+        response = self.__session.request("GET", self.__ree_api_url.format(IDprices20,str(start_date.strftime('%Y-%m-%d')),str(end_date.strftime('%Y-%m-%d'))), headers=self.__headers_ree)
         if response.status_code != 200:
             raise ResponseException
         if not response.text:
             raise NoResponseException
         json_response = response.json()
-        prices = []
+        prices20 = []
         for i in range(len(json_response['indicator']['values'])):
-            prices.append(float(json_response['indicator']['values'][i]['value'])/1000)
-        return prices
+            prices20.append(int(json_response['indicator']['values'][i]['value'])/1000)
 
-    def calculate_invoice_20dha_PVPC(self, token, index):
+
+        response = self.__session.request("GET", self.__ree_api_url.format(IDprices20DHA,str(start_date.strftime('%Y-%m-%d')),str(end_date.strftime('%Y-%m-%d'))), headers=self.__headers_ree)
+        if response.status_code != 200:
+            raise ResponseException
+        if not response.text:
+            raise NoResponseException
+        json_response = response.json()
+        prices20DHA = []
+        for i in range(len(json_response['indicator']['values'])):
+            prices20DHA.append(int(json_response['indicator']['values'][i]['value'])/1000)
+
+        return prices20, prices20DHA
+
+    def calculate_invoice_PVPC(self, token, index):
         """Returns cost of same consumptions on pvpc . Index 0 means current consumption not yet invoiced. Bigger indexes returns costs of every already created invoice"""
-        consumptions, start_date, end_date = self.get_invoice_consumption(index)
-        costs_per_kwh = self.get_ree_20dha_data(token,start_date,end_date)
+        consumptions, start_date, end_date, p1, p2 = self.get_invoice_consumption(index)
+        costs_per_kwh_20, costs_per_kwh_20DHA = self.get_ree_data(token,start_date,end_date)
         ndays = (end_date - start_date).days+1
         pot = (self.contract()['potMaxima'])/1000
-        print("\n\nCOSTE PVPC 2.0DHA\nDESDE: "+start_date.strftime('%d-%m-%Y')+"\nHASTA: "+end_date.strftime('%d-%m-%Y')+"\nDIAS: "+str(ndays)+"\n\n")
-        energy_cost = 0
+        print("\nDESDE: "+start_date.strftime('%d-%m-%Y')+"\nHASTA: "+end_date.strftime('%d-%m-%Y')+"\nDIAS: "+str(ndays)+"\nPOTENCIA: "+str(pot)+"KW\nCONSUMO PUNTA P1: " + '{0:.2f}'.format(p1)+ "kwh"+"\nCONSUMO VALLE P2: "+ '{0:.2f}'.format(p2)+ "kwh\n")
+        energy_cost_20 = 0
+        energy_cost_20DHA = 0
         for i in range(len(consumptions)):
-            energy_cost = energy_cost + (consumptions[i]*costs_per_kwh[i])
+            energy_cost_20 = energy_cost_20 + (consumptions[i]*costs_per_kwh_20[i])
+            energy_cost_20DHA = energy_cost_20DHA + (consumptions[i]*costs_per_kwh_20DHA[i])      
         power_cost = pot * ((38.043426+3.113)/366) * ndays
-        energy_and_power_cost = energy_cost + power_cost
-        energy_tax = energy_and_power_cost*0.0511269632
+        energy_and_power_cost_20 = energy_cost_20 + power_cost
+        energy_and_power_cost_20DHA = energy_cost_20DHA + power_cost
+        energy_tax_20 = energy_and_power_cost_20*0.0511269632
+        energy_tax_20DHA = energy_and_power_cost_20DHA*0.0511269632
         equipment_cost = ndays * (0.81*12/366)
-        total =  energy_and_power_cost + energy_tax + equipment_cost
-        total_plus_vat = total * 1.21
-        print("Power cost: "+'{0:.2f}'.format(power_cost)+ "€")
-        print("Energy cost: "+'{0:.2f}'.format(energy_cost)+ "€")
-        print("Electric tax: "+'{0:.2f}'.format(energy_tax)+ "€")
-        print("Measure equipments: " +'{0:.2f}'.format(equipment_cost)+ "€")
-        print("VAT: " +'{0:.2f}'.format(total*0.21)+ "€")
-        return "TOTAL: " + '{0:.2f}'.format(total_plus_vat) + "€"
+        total_20 =  energy_and_power_cost_20 + energy_tax_20 + equipment_cost
+        total_20DHA =  energy_and_power_cost_20DHA + energy_tax_20DHA + equipment_cost
+        total_plus_vat_20 = total_20 * 1.21
+        total_plus_vat_20DHA = total_20DHA * 1.21
+        print("PVPC 2.0A price\t\t\tPVPC 2.0DHA price")
+        print("------------------------------------------------------------")
+        print("Power cost 2.0: "+'{0:.2f}'.format(power_cost)+ "€\t\tPower cost 2.0DHA: "+'{0:.2f}'.format(power_cost)+"€")
+        print("Energy cost: "+'{0:.2f}'.format(energy_cost_20)+ "€\t\tEnergy cost: "+'{0:.2f}'.format(energy_cost_20DHA)+"€")
+        print("Electric tax: "+'{0:.2f}'.format(energy_tax_20)+ "€\t\tElectric tax: "+'{0:.2f}'.format(energy_tax_20DHA)+"€")
+        print("Measure equipments: " +'{0:.2f}'.format(equipment_cost)+ "€\tMeasure equipments: " +'{0:.2f}'.format(equipment_cost)+"€")
+        print("VAT: " +'{0:.2f}'.format(total_20*0.21)+ "€\t\t\tVAT: " +'{0:.2f}'.format(total_20DHA*0.21)+"€")
+        return "TOTAL: " + '{0:.2f}'.format(total_plus_vat_20) + "€\t\t\tTOTAL: " + '{0:.2f}'.format(total_plus_vat_20DHA)+"€\n\n"
 
     def icpstatus(self):
         """Returns the status of your ICP."""
