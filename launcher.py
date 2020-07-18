@@ -19,7 +19,7 @@ connection.login(user_i_de, passw_i_de)
 #x = connection.get_hourly_consumption(datetime.strptime("15-06-2020","%d-%m-%Y"),datetime.strptime("02-07-2020","%d-%m-%Y"))
 #x = connection.get_invoice_consumption(1)
 #x = connection.get_ree_data(ree_token,datetime.strptime("15-06-2020","%d-%m-%Y"),datetime.strptime("02-07-2020","%d-%m-%Y"))
-for i in range(7):
+for i in range(7,-1,-1):
     x = connection.calculate_invoice_PVPC(ree_token,i)
     print(x)
     print("\n###################################\n")
