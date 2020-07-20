@@ -3,9 +3,8 @@
 ## [ES] Cliente Python (NO OFICIAL) para i-DE (Iberdrola distribución).
 ### Instalación:
 
-```
 ~~pip install oligo~~
-```
+
 ### Ejemplos:
 #### Calcular factura en PVPC con los consumos del contador:
 
