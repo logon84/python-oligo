@@ -223,14 +223,15 @@ class Iber:
         total_plus_vat_other = total_other * 1.21
 ############################################################################################
 
-        print("PVPC 2.0A price\t\t\tPVPC 2.0DHA price\t\tSOM ENERGIA DHA price")
-        print("----------------------------------------------------------------------------------")
-        print("Power cost 2.0: "+'{0:.2f}'.format(power_cost)+ "€\t\tPower cost 2.0DHA: "+'{0:.2f}'.format(power_cost)+"€\tPower cost 2.0DHA: "+'{0:.2f}'.format(power_cost_other)+"€")
-        print("Energy cost: "+'{0:.2f}'.format(energy_cost_20)+ "€\t\tEnergy cost: "+'{0:.2f}'.format(energy_cost_20DHA)+"€\t\tEnergy cost: "+'{0:.2f}'.format(energy_cost_other)+"€")
-        print("Electric tax: "+'{0:.2f}'.format(energy_tax_20)+ "€\t\tElectric tax: "+'{0:.2f}'.format(energy_tax_20DHA)+"€\t\tElectric tax: "+'{0:.2f}'.format(energy_tax_other)+"€")
-        print("Measure equipments: " +'{0:.2f}'.format(equipment_cost)+ "€\tMeasure equipments: " +'{0:.2f}'.format(equipment_cost)+"€\tMeasure equipments: "+'{0:.2f}'.format(equipment_cost_other)+"€")
-        print("VAT: " +'{0:.2f}'.format(total_20*0.21)+ "€\t\t\tVAT: " +'{0:.2f}'.format(total_20DHA*0.21)+"€\t\t\tVAT: " +'{0:.2f}'.format(total_other*0.21)+"€")
-        return "TOTAL: " + '{0:.2f}'.format(total_plus_vat_20) + "€\t\t\tTOTAL: " + '{0:.2f}'.format(total_plus_vat_20DHA)+"€\t\t\tTOTAL: " + '{0:.2f}'.format(total_plus_vat_other)+"€\n\n"
+        print('{:<30} {:<30} {:<30}'.format("PVPC 2.0A price", "PVPC 2.0DHA price", "SOM ENERGIA 2.0DHA price"))
+        print("-----------------------------------------------------------------------------------------")
+        print('{:<30} {:<30} {:<30}'.format("Power cost: "+'{0:.2f}'.format(power_cost)+"€", "Power cost: "+'{0:.2f}'.format(power_cost)+"€", "Power cost: "+'{0:.2f}'.format(power_cost_other)+"€"))
+        print('{:<30} {:<30} {:<30}'.format("Energy cost: "+'{0:.2f}'.format(energy_cost_20)+"€", "Energy cost: "+'{0:.2f}'.format(energy_cost_20DHA)+"€", "Energy cost: "+'{0:.2f}'.format(energy_cost_other)+"€"))
+        print('{:<30} {:<30} {:<30}'.format("Electric tax: "+'{0:.2f}'.format(energy_tax_20)+"€", "Electric tax: "+'{0:.2f}'.format(energy_tax_20DHA)+"€", "Electric tax: "+'{0:.2f}'.format(energy_tax_other)+"€"))
+        print('{:<30} {:<30} {:<30}'.format("Measure equipments: "+'{0:.2f}'.format(equipment_cost)+"€", "Measure equipments: "+'{0:.2f}'.format(equipment_cost)+"€", "Measure equipments: "+'{0:.2f}'.format(equipment_cost_other)+"€"))
+        print('{:<30} {:<30} {:<30}'.format("VAT: "+'{0:.2f}'.format(total_20*0.21)+"€", "VAT: "+'{0:.2f}'.format(total_20DHA*0.21)+"€", "VAT: "+'{0:.2f}'.format(total_other*0.21)+"€"))
+        print('{:<30} {:<30} {:<30}'.format("TOTAL: "+'{0:.2f}'.format(total_plus_vat_20)+"€", "TOTAL: "+'{0:.2f}'.format(total_plus_vat_20DHA)+"€", "TOTAL: "+'{0:.2f}'.format(total_plus_vat_other)+"€\n\n"))
+        return "Done"
 
     def icpstatus(self):
         """Returns the status of your ICP."""
