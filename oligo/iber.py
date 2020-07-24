@@ -175,7 +175,7 @@ class Iber:
         json_response = response.json()
         prices20 = []
         for i in range(len(json_response['indicator']['values'])):
-            prices20.append(int(json_response['indicator']['values'][i]['value'])/1000)
+            prices20.append(round(float(json_response['indicator']['values'][i]['value'])/1000, 6))
 
 
         response = self.__session.request("GET", self.__ree_api_url.format(IDprices20DHA,str(start_date.strftime('%Y-%m-%d')),str(end_date.strftime('%Y-%m-%d'))), headers=self.__headers_ree)
@@ -186,7 +186,7 @@ class Iber:
         json_response = response.json()
         prices20DHA = []
         for i in range(len(json_response['indicator']['values'])):
-            prices20DHA.append(int(json_response['indicator']['values'][i]['value'])/1000)
+            prices20DHA.append(round(float(json_response['indicator']['values'][i]['value'])/1000, 6))
 
         return prices20, prices20DHA
 
@@ -201,7 +201,7 @@ class Iber:
         energy_cost_20DHA = 0
         for i in range(len(consumptions)):
             energy_cost_20 = energy_cost_20 + (consumptions[i]*costs_per_kwh_20[i])
-            energy_cost_20DHA = energy_cost_20DHA + (consumptions[i]*costs_per_kwh_20DHA[i])    
+            energy_cost_20DHA = energy_cost_20DHA + (consumptions[i]*costs_per_kwh_20DHA[i])
         power_cost = pot * ((38.043426+3.113)/366) * ndays
         energy_and_power_cost_20 = energy_cost_20 + power_cost
         energy_and_power_cost_20DHA = energy_cost_20DHA + power_cost
@@ -210,8 +210,10 @@ class Iber:
         equipment_cost = ndays * (0.81*12/366)
         total_20 =  energy_and_power_cost_20 + energy_tax_20 + equipment_cost
         total_20DHA =  energy_and_power_cost_20DHA + energy_tax_20DHA + equipment_cost
-        total_plus_vat_20 = total_20 * 1.21
-        total_plus_vat_20DHA = total_20DHA * 1.21
+        VAT_20 = round(total_20*0.21,2)
+        VAT_20DHA = round(total_20DHA*0.21,2)
+        total_plus_vat_20 = total_20 + VAT_20
+        total_plus_vat_20DHA = total_20DHA + VAT_20DHA
 #####################_____OTHER_COMPARISON (fill values)_____###############################
         power_cost_other = pot * (38.043426/366) * ndays
         energy_cost_other = p1 * 0.161 + p2 * 0.082
@@ -220,7 +222,8 @@ class Iber:
         equipment_cost_other = ndays * 0.026557
         social_bonus = 0.02 * ndays
         total_other = energy_and_power_cost_other + energy_tax_other + equipment_cost_other + social_bonus
-        total_plus_vat_other = total_other * 1.21
+        VAT_other = round(total_other*0.21,2)
+        total_plus_vat_other = total_other + VAT_other
 ############################################################################################
 
         print('{:<30} {:<30} {:<30}'.format("PVPC 2.0A price", "PVPC 2.0DHA price", "SOM ENERGIA 2.0DHA price"))
@@ -229,7 +232,7 @@ class Iber:
         print('{:<30} {:<30} {:<30}'.format("Energy cost: "+'{0:.2f}'.format(energy_cost_20)+"€", "Energy cost: "+'{0:.2f}'.format(energy_cost_20DHA)+"€", "Energy cost: "+'{0:.2f}'.format(energy_cost_other)+"€"))
         print('{:<30} {:<30} {:<30}'.format("Electric tax: "+'{0:.2f}'.format(energy_tax_20)+"€", "Electric tax: "+'{0:.2f}'.format(energy_tax_20DHA)+"€", "Electric tax: "+'{0:.2f}'.format(energy_tax_other)+"€"))
         print('{:<30} {:<30} {:<30}'.format("Measure equipments: "+'{0:.2f}'.format(equipment_cost)+"€", "Measure equipments: "+'{0:.2f}'.format(equipment_cost)+"€", "Measure equipments: "+'{0:.2f}'.format(equipment_cost_other)+"€"))
-        print('{:<30} {:<30} {:<30}'.format("VAT: "+'{0:.2f}'.format(total_20*0.21)+"€", "VAT: "+'{0:.2f}'.format(total_20DHA*0.21)+"€", "VAT: "+'{0:.2f}'.format(total_other*0.21)+"€"))
+        print('{:<30} {:<30} {:<30}'.format("VAT: "+'{0:.2f}'.format(VAT_20)+"€", "VAT: "+'{0:.2f}'.format(VAT_20DHA)+"€", "VAT: "+'{0:.2f}'.format(VAT_other)+"€"))
         print('{:<30} {:<30} {:<30}'.format("TOTAL: "+'{0:.2f}'.format(total_plus_vat_20)+"€", "TOTAL: "+'{0:.2f}'.format(total_plus_vat_20DHA)+"€", "TOTAL: "+'{0:.2f}'.format(total_plus_vat_other)+"€\n\n"))
         return "Done"
 
