@@ -2,6 +2,7 @@ from requests import Session
 from datetime import datetime
 from io import StringIO
 from dateutil.relativedelta import relativedelta
+from decimal import Decimal
 
 
 class ResponseException(Exception):
@@ -122,26 +123,21 @@ class Iber:
             raise ResponseException
         if not response.text:
             raise NoResponseException
-        consumptions = []
-        p1 = 0
-        p2 = 0
+        p1 = []
+        p2 = []
         csvdata = StringIO(response.text)
         next(csvdata)
         for line in csvdata:
             curr_hour = int(line.split(";")[1][11:13])
             curr_consumption = int(line.split(";")[3])/1000
-            consumptions.append(curr_consumption)
-            if line.split(";")[2] == '0':			#winter hours consumption
-                if 12 < curr_hour <= 22:
-                     p1 = p1 + curr_consumption #peak hours consumption
-                else:
-                     p2 = p2 + curr_consumption #low hours consumption
-            else:		#summer hours consumption
-                if 13 < curr_hour <= 23:
-                     p1 = p1 + curr_consumption #peak hours consumption
-                else:
-                     p2 = p2 + curr_consumption #low hours consumption
-        return consumptions, start_date, end_date, p1, p2
+            summer_flag = int(line.split(";")[2])
+            if (12 + summer_flag) < curr_hour <= (22 + summer_flag):
+                 p1.append(curr_consumption) #peak hours consumption
+                 p2.append(0)
+            else:
+                 p2.append(curr_consumption) #low hours consumption
+                 p1.append(0)
+        return start_date, end_date, p1, p2
 
     def get_invoice_consumption(self,index):
         """Returns consumption by invoice. Index 0 means current consumption not yet invoiced. Bigger indexes returns consumption by every already created invoice"""
@@ -158,51 +154,89 @@ class Iber:
             start_date = datetime.strptime(start_date, '%d/%m/%Y')
             end_date = invoice['fechaHasta']
             end_date = datetime.strptime(end_date, '%d/%m/%Y')
-        consumptions, start_date, end_date, p1, p2 = self.get_hourly_consumption(start_date,end_date)
-        return consumptions, start_date, end_date, p1, p2
+        start_date, end_date, p1, p2 = self.get_hourly_consumption(start_date,end_date)
+        return start_date, end_date, p1, p2
 
     def get_ree_data(self,token,start_date,end_date):
-        """Returns energy prices from REE"""
-        IDprices20 = '1013'
-        IDprices20DHA = '1014'
+        """Returns energy & toll prices from REE"""
+        IDprices20_total = '1013'
+        IDtoll20 = '1018'
+        IDprices20DHA_total = '1014'
+        IDtoll20DHA = '1025'
         self.__headers_ree['Authorization'] = "Token token=" + token
 
-        response = self.__session.request("GET", self.__ree_api_url.format(IDprices20,str(start_date.strftime('%Y-%m-%d')),str(end_date.strftime('%Y-%m-%d'))), headers=self.__headers_ree)
+        response = self.__session.request("GET", self.__ree_api_url.format(IDtoll20,str(start_date.strftime('%Y-%m-%d')),str(end_date.strftime('%Y-%m-%d'))), headers=self.__headers_ree)
         if response.status_code != 200:
             raise ResponseException
         if not response.text:
             raise NoResponseException
         json_response = response.json()
-        prices20 = []
+        toll20 = []
         for i in range(len(json_response['indicator']['values'])):
-            prices20.append(round(float(json_response['indicator']['values'][i]['value'])/1000, 6))
+            toll20.append(self.roundup(float(json_response['indicator']['values'][i]['value'])/1000, 6))
 
-
-        response = self.__session.request("GET", self.__ree_api_url.format(IDprices20DHA,str(start_date.strftime('%Y-%m-%d')),str(end_date.strftime('%Y-%m-%d'))), headers=self.__headers_ree)
+        response = self.__session.request("GET", self.__ree_api_url.format(IDprices20_total,str(start_date.strftime('%Y-%m-%d')),str(end_date.strftime('%Y-%m-%d'))), headers=self.__headers_ree)
         if response.status_code != 200:
             raise ResponseException
         if not response.text:
             raise NoResponseException
         json_response = response.json()
-        prices20DHA = []
+        energy20 = []
         for i in range(len(json_response['indicator']['values'])):
-            prices20DHA.append(round(float(json_response['indicator']['values'][i]['value'])/1000, 6))
+            energy20.append(self.roundup(float(json_response['indicator']['values'][i]['value'])/1000, 6) - toll20[i])
 
-        return prices20, prices20DHA
+
+        response = self.__session.request("GET", self.__ree_api_url.format(IDtoll20DHA,str(start_date.strftime('%Y-%m-%d')),str(end_date.strftime('%Y-%m-%d'))), headers=self.__headers_ree)
+        if response.status_code != 200:
+            raise ResponseException
+        if not response.text:
+            raise NoResponseException
+        json_response = response.json()
+        toll20DHA = []
+        for i in range(len(json_response['indicator']['values'])):
+            toll20DHA.append(self.roundup(float(json_response['indicator']['values'][i]['value'])/1000, 6))
+
+        response = self.__session.request("GET", self.__ree_api_url.format(IDprices20DHA_total,str(start_date.strftime('%Y-%m-%d')),str(end_date.strftime('%Y-%m-%d'))), headers=self.__headers_ree)
+        if response.status_code != 200:
+            raise ResponseException
+        if not response.text:
+            raise NoResponseException
+        json_response = response.json()
+        energy20DHA = []
+        for i in range(len(json_response['indicator']['values'])):
+            energy20DHA.append(self.roundup(float(json_response['indicator']['values'][i]['value'])/1000, 6) - toll20DHA[i])
+
+        return energy20, toll20, energy20DHA, toll20DHA
+
+    def roundup(self, num, ndecimals):
+        return float(round(Decimal(str(num)),ndecimals))
 
     def calculate_invoice_PVPC(self, token, index):
         """Returns cost of same consumptions on pvpc . Index 0 means current consumption not yet invoiced. Bigger indexes returns costs of every already created invoice"""
-        consumptions, start_date, end_date, p1, p2 = self.get_invoice_consumption(index)
-        costs_per_kwh_20, costs_per_kwh_20DHA = self.get_ree_data(token,start_date,end_date)
+        start_date, end_date, p1, p2 = self.get_invoice_consumption(index)
+        energy20, toll20, energy20DHA, toll20DHA = self.get_ree_data(token,start_date,end_date)
         ndays = (end_date - start_date).days+1
         pot = (self.contract()['potMaxima'])/1000
-        print("\nDESDE: "+start_date.strftime('%d-%m-%Y')+"\nHASTA: "+end_date.strftime('%d-%m-%Y')+"\nDIAS: "+str(ndays)+"\nPOTENCIA: "+str(pot)+"KW\nCONSUMO PUNTA P1: " + '{0:.2f}'.format(p1)+ "kwh"+"\nCONSUMO VALLE P2: "+ '{0:.2f}'.format(p2)+ "kwh\n")
-        energy_cost_20 = 0
-        energy_cost_20DHA = 0
-        for i in range(len(consumptions)):
-            energy_cost_20 = energy_cost_20 + (consumptions[i]*costs_per_kwh_20[i])
-            energy_cost_20DHA = energy_cost_20DHA + (consumptions[i]*costs_per_kwh_20DHA[i])
+        print("\nDESDE: "+start_date.strftime('%d-%m-%Y')+"\nHASTA: "+end_date.strftime('%d-%m-%Y')+"\nDIAS: "+str(ndays)+"\nPOTENCIA: "+str(pot)+"KW\nCONSUMO PUNTA P1: " + '{0:.2f}'.format(sum(p1))+ "kwh"+"\nCONSUMO VALLE P2: "+ '{0:.2f}'.format(sum(p2))+ "kwh\n")
+        average_price_energy20 = 0
+        average_price_toll20 = 0
+        average_price_energy20DHA_peak = 0
+        average_price_toll20DHA_peak = 0
+        average_price_energy20DHA_low = 0
+        average_price_toll20DHA_low = 0
+        for i in range(len(p1)):
+            average_price_energy20 = average_price_energy20 + (p1[i]*energy20[i] + p2[i]*energy20[i])/(sum(p1)+sum(p2))
+            average_price_toll20 = average_price_toll20 + (p1[i]*toll20[i] + p2[i]*toll20[i])/(sum(p1)+sum(p2))
+
+            average_price_energy20DHA_peak = average_price_energy20DHA_peak + (p1[i]*energy20DHA[i])/sum(p1)
+            average_price_toll20DHA_peak = average_price_toll20DHA_peak + (p1[i]*toll20DHA[i])/sum(p1)
+
+            average_price_energy20DHA_low = average_price_energy20DHA_low + (p2[i]*energy20DHA[i])/sum(p2)
+            average_price_toll20DHA_low = average_price_toll20DHA_low + (p2[i]*toll20DHA[i])/sum(p2)
+
         power_cost = pot * ((38.043426+3.113)/366) * ndays
+        energy_cost_20 = self.roundup(average_price_energy20*(self.roundup(sum(p1)+sum(p2),1)),2) + self.roundup(average_price_toll20*(self.roundup(sum(p1)+sum(p2),1)),2)
+        energy_cost_20DHA = self.roundup(average_price_energy20DHA_peak*(self.roundup(sum(p1),1)),2) + self.roundup(average_price_toll20DHA_peak*(self.roundup(sum(p1),1)),2) + self.roundup(average_price_energy20DHA_low*(self.roundup(sum(p2),1)),2) + self.roundup(average_price_toll20DHA_low*(self.roundup(sum(p2),1)),2)
         energy_and_power_cost_20 = energy_cost_20 + power_cost
         energy_and_power_cost_20DHA = energy_cost_20DHA + power_cost
         energy_tax_20 = energy_and_power_cost_20*0.0511269632
@@ -210,19 +244,19 @@ class Iber:
         equipment_cost = ndays * (0.81*12/366)
         total_20 =  energy_and_power_cost_20 + energy_tax_20 + equipment_cost
         total_20DHA =  energy_and_power_cost_20DHA + energy_tax_20DHA + equipment_cost
-        VAT_20 = round(total_20*0.21,2)
-        VAT_20DHA = round(total_20DHA*0.21,2)
+        VAT_20 = self.roundup(total_20*0.21,2)
+        VAT_20DHA = self.roundup(total_20DHA*0.21,2)
         total_plus_vat_20 = total_20 + VAT_20
         total_plus_vat_20DHA = total_20DHA + VAT_20DHA
 #####################_____OTHER_COMPARISON (fill values)_____###############################
         power_cost_other = pot * (38.043426/366) * ndays
-        energy_cost_other = p1 * 0.161 + p2 * 0.082
+        energy_cost_other = sum(p1) * 0.161 + sum(p2) * 0.082
         energy_and_power_cost_other = energy_cost_other + power_cost_other
-        energy_tax_other = energy_and_power_cost_other*0.0511269632
-        equipment_cost_other = ndays * 0.026557
         social_bonus = 0.02 * ndays
+        energy_tax_other = (energy_and_power_cost_other + social_bonus)*0.0511269632
+        equipment_cost_other = ndays * 0.026557
         total_other = energy_and_power_cost_other + energy_tax_other + equipment_cost_other + social_bonus
-        VAT_other = round(total_other*0.21,2)
+        VAT_other = self.roundup(total_other*0.21,2)
         total_plus_vat_other = total_other + VAT_other
 ############################################################################################
 
