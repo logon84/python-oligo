@@ -2,6 +2,7 @@ from requests import Session
 from datetime import datetime
 from io import StringIO
 from dateutil.relativedelta import relativedelta
+import calendar
 from decimal import Decimal
 
 
@@ -38,7 +39,8 @@ class Iber:
     twoyearsago =  today - relativedelta(years=2)
     __invoice_list_url = __domain + "/consumidores/rest/consumoNew/obtenerDatosFacturasConsumo/fechaInicio/{0}/fechaFinal/{1}".format(twoyearsago.strftime("%d-%m-%Y%H:%M:%S"),today.strftime("%d-%m-%Y%H:%M:%S"))
     __consumption_max_date_url = __domain + "/consumidores/rest/consumoNew/obtenerLimiteFechasConsumo"
-    __consumption_between_dates_csv_url = __domain + "/consumidores/rest/consumoNew/exportarACSVPeriodoConsumo/fechaInicio/{0}/fechaFinal/{1}/tipo/horaria/"
+    __consumption_between_dates_csv_url = __domain + "/consumidores/rest/consumoNew/exportarACSVPeriodoConsumo/fechaInicio/{0}00:00:00/fechaFinal/{1}00:00:00/tipo/horaria/"
+    __consumption_by_invoice_csv_url = __domain + "/consumidores/rest/consumoNew/exportarACSV/factura/{0}/fechaInicio/{1}00:00:00/fechaFinal/{2}23:59:59/modo/R"
     __headers_i_de = {
         'User-Agent': "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Ubuntu Chromium/77.0.3865.90 Chrome/77.0.3865.90 Safari/537.36",
         'accept': "application/json; charset=utf-8",
@@ -113,12 +115,12 @@ class Iber:
         return max_date
 
     def get_hourly_consumption(self,start_date,end_date):
-        """Returns hour consumption between dates."""
+        """Returns hour consumption between dates.This DOES NOT return E consumptions"""
         self.__check_session()
         max_date = self.get_last_day_with_recorded_data()
         if end_date > max_date:
             end_date = max_date
-        response = self.__session.request("GET", self.__consumption_between_dates_csv_url.format(str(start_date.strftime('%d-%m-%Y'))+'00:00:00',str(end_date.strftime('%d-%m-%Y'))+'00:00:00'), headers=self.__headers_i_de)
+        response = self.__session.request("GET", self.__consumption_between_dates_csv_url.format(str(start_date.strftime('%d-%m-%Y')),str(end_date.strftime('%d-%m-%Y'))), headers=self.__headers_i_de)
         if response.status_code != 200:
             raise ResponseException
         if not response.text:
@@ -139,8 +141,36 @@ class Iber:
                  p1.append(0)
         return start_date, end_date, p1, p2
 
-    def get_invoice_consumption(self,index):
-        """Returns consumption by invoice. Index 0 means current consumption not yet invoiced. Bigger indexes returns consumption by every already created invoice"""
+    def get_hourly_consumption_by_invoice(self,invoice_number,start_date,end_date):
+        """Returns hour consumption by invoice.This DOES return R and E consumptions, so it's better for costs comparison"""
+        self.__check_session()
+        response = self.__session.request("GET", self.__consumption_by_invoice_csv_url.format(invoice_number,str(start_date.strftime('%d-%m-%Y')),end_date.strftime('%d-%m-%Y')), headers=self.__headers_i_de)
+        if response.status_code != 200:
+            raise ResponseException
+        if not response.text:
+            raise NoResponseException
+        p1 = []
+        p2 = []
+        csvdata = StringIO(response.text)
+        next(csvdata)
+        for line in csvdata:
+            curr_hour = int(line.split(";")[2])
+            curr_consumption = float(line.split(";")[3].replace(',','.'))
+            curr_day = datetime.strptime(line.split(";")[1], '%d/%m/%Y')
+            if curr_day.timetuple().tm_yday in range(80-int(calendar.isleap(curr_day.year)),264-int(calendar.isleap(curr_day.year))):
+                 summer_flag = 1
+            else:
+                 summer_flag = 0
+            if (12 + summer_flag) < curr_hour <= (22 + summer_flag):
+                 p1.append(curr_consumption) #peak hours consumption
+                 p2.append(0)
+            else:
+                 p2.append(curr_consumption) #low hours consumption
+                 p1.append(0)
+        return start_date, end_date, p1, p2
+
+    def get_consumption(self,index):
+        """Returns consumptions. Index 0 means current consumption not yet invoiced. Bigger indexes returns consumption by every already created invoice"""
         self.__check_session()
         if index == 0: #get current cost
             last_invoice = self.get_invoice(0) #get last invoice
@@ -148,13 +178,14 @@ class Iber:
             start_date = datetime.strptime(start_date, '%d/%m/%Y')
             start_date = start_date + relativedelta(days=1)
             end_date = self.today
+            start_date, end_date, p1, p2 = self.get_hourly_consumption(start_date,end_date)
         else:
             invoice = self.get_invoice(index-1)
             start_date = invoice['fechaDesde']
             start_date = datetime.strptime(start_date, '%d/%m/%Y')
             end_date = invoice['fechaHasta']
             end_date = datetime.strptime(end_date, '%d/%m/%Y')
-        start_date, end_date, p1, p2 = self.get_hourly_consumption(start_date,end_date)
+            start_date, end_date, p1, p2 = self.get_hourly_consumption_by_invoice(invoice['numero'],start_date,end_date)
         return start_date, end_date, p1, p2
 
     def get_ree_data(self,token,start_date,end_date):
@@ -213,7 +244,7 @@ class Iber:
 
     def calculate_invoice_PVPC(self, token, index):
         """Returns cost of same consumptions on pvpc . Index 0 means current consumption not yet invoiced. Bigger indexes returns costs of every already created invoice"""
-        start_date, end_date, p1, p2 = self.get_invoice_consumption(index)
+        start_date, end_date, p1, p2 = self.get_consumption(index)
         energy20, toll20, energy20DHA, toll20DHA = self.get_ree_data(token,start_date,end_date)
         ndays = (end_date - start_date).days+1
         pot = (self.contract()['potMaxima'])/1000
