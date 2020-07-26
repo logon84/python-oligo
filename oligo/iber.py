@@ -157,10 +157,7 @@ class Iber:
             curr_hour = int(line.split(";")[2])
             curr_consumption = float(line.split(";")[3].replace(',','.'))
             curr_day = datetime.strptime(line.split(";")[1], '%d/%m/%Y')
-            if curr_day.timetuple().tm_yday in range(80-int(calendar.isleap(curr_day.year)),264-int(calendar.isleap(curr_day.year))):
-                 summer_flag = 1
-            else:
-                 summer_flag = 0
+            summer_flag = int(curr_day.timetuple().tm_yday in range(80,266))
             if (12 + summer_flag) < curr_hour <= (22 + summer_flag):
                  p1.append(curr_consumption) #peak hours consumption
                  p2.append(0)
