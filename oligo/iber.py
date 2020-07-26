@@ -265,14 +265,14 @@ class Iber:
             average_price_energy20DHA_low = average_price_energy20DHA_low + (p2[i]*energy20DHA[i])/sum(p2)
             average_price_toll20DHA_low = average_price_toll20DHA_low + (p2[i]*toll20DHA[i])/sum(p2)
 
-        power_cost = pot * ((38.043426+3.113)/366) * ndays
+        power_cost = pot * (38.043426+3.113)/(365+int(calendar.isleap(start_date.year))) * ndays
         energy_cost_20 = self.roundup(average_price_energy20*(self.roundup(sum(p1)+sum(p2),1)),2) + self.roundup(average_price_toll20*(self.roundup(sum(p1)+sum(p2),1)),2)
         energy_cost_20DHA = self.roundup(average_price_energy20DHA_peak*(self.roundup(sum(p1),1)),2) + self.roundup(average_price_toll20DHA_peak*(self.roundup(sum(p1),1)),2) + self.roundup(average_price_energy20DHA_low*(self.roundup(sum(p2),1)),2) + self.roundup(average_price_toll20DHA_low*(self.roundup(sum(p2),1)),2)
         energy_and_power_cost_20 = energy_cost_20 + power_cost
         energy_and_power_cost_20DHA = energy_cost_20DHA + power_cost
         energy_tax_20 = energy_and_power_cost_20*0.0511269632
         energy_tax_20DHA = energy_and_power_cost_20DHA*0.0511269632
-        equipment_cost = ndays * (0.81*12/366)
+        equipment_cost = ndays * (0.81*12/(365+int(calendar.isleap(start_date.year))))
         total_20 =  energy_and_power_cost_20 + energy_tax_20 + equipment_cost
         total_20DHA =  energy_and_power_cost_20DHA + energy_tax_20DHA + equipment_cost
         VAT_20 = self.roundup(total_20*0.21,2)
@@ -280,12 +280,12 @@ class Iber:
         total_plus_vat_20 = total_20 + VAT_20
         total_plus_vat_20DHA = total_20DHA + VAT_20DHA
 #####################_____OTHER_COMPARISON (fill values)_____###############################
-        power_cost_other = pot * (38.043426/366) * ndays
+        power_cost_other = pot * (38.043426/(365+int(calendar.isleap(start_date.year)))) * ndays
         energy_cost_other = sum(p1) * 0.161 + sum(p2) * 0.082
         energy_and_power_cost_other = energy_cost_other + power_cost_other
         social_bonus = 0.02 * ndays
         energy_tax_other = (energy_and_power_cost_other + social_bonus)*0.0511269632
-        equipment_cost_other = ndays * 0.026557
+        equipment_cost_other = ndays *(0.81*12)/(365+int(calendar.isleap(start_date.year)))
         total_other = energy_and_power_cost_other + energy_tax_other + equipment_cost_other + social_bonus
         VAT_other = self.roundup(total_other*0.21,2)
         total_plus_vat_other = total_other + VAT_other
