@@ -36,7 +36,7 @@ class Iber:
     __contract_selection_url = __domain + "/consumidores/rest/cto/seleccion/"
     today = datetime.now()
     twoyearsago =  today - relativedelta(years=2)
-    __consumption_by_invoice_url = __domain + "/consumidores/rest/consumoNew/obtenerDatosFacturasConsumo/fechaInicio/{0}/fechaFinal/{1}".format(twoyearsago.strftime("%d-%m-%Y%H:%M:%S"),today.strftime("%d-%m-%Y%H:%M:%S"))
+    __invoice_list_url = __domain + "/consumidores/rest/consumoNew/obtenerDatosFacturasConsumo/fechaInicio/{0}/fechaFinal/{1}".format(twoyearsago.strftime("%d-%m-%Y%H:%M:%S"),today.strftime("%d-%m-%Y%H:%M:%S"))
     __consumption_max_date_url = __domain + "/consumidores/rest/consumoNew/obtenerLimiteFechasConsumo"
     __consumption_between_dates_csv_url = __domain + "/consumidores/rest/consumoNew/exportarACSVPeriodoConsumo/fechaInicio/{0}/fechaFinal/{1}/tipo/horaria/"
     __headers_i_de = {
@@ -92,7 +92,7 @@ class Iber:
     def get_invoice(self,index):
         """Returns invoice data."""
         self.__check_session()
-        response = self.__session.request("GET", self.__consumption_by_invoice_url, headers=self.__headers_i_de)
+        response = self.__session.request("GET", self.__invoice_list_url, headers=self.__headers_i_de)
         if response.status_code != 200:
             raise ResponseException
         if not response.text:
