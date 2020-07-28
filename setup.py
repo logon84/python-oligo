@@ -14,7 +14,7 @@ setuptools.setup(
     url="https://github.com/blackleg/python-oligo",
     packages=setuptools.find_packages(),
     install_requires=[
-        'requests',
+        'requests', 'datetime', 'io', 'dateutil.relativedelta', 'calendar', 'decimal', 'aiohttp', 'asyncio',
     ],
     classifiers=[
         "Programming Language :: Python :: 3",
