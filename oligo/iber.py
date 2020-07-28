@@ -4,6 +4,8 @@ from io import StringIO
 from dateutil.relativedelta import relativedelta
 import calendar
 from decimal import Decimal
+import aiohttp
+import asyncio
 
 
 class ResponseException(Exception):
@@ -125,21 +127,31 @@ class Iber:
             raise ResponseException
         if not response.text:
             raise NoResponseException
-        p1 = []
-        p2 = []
+        consumption_kwh = []
+        counter = 1
+        last_date_hour = 0
         csvdata = StringIO(response.text)
         next(csvdata)
         for line in csvdata:
-            curr_hour = int(line.split(";")[1][11:13])
-            curr_consumption = int(line.split(";")[3])/1000
-            summer_flag = int(line.split(";")[2])
-            if (12 + summer_flag) < curr_hour <= (22 + summer_flag):
-                 p1.append(curr_consumption) #peak hours consumption
-                 p2.append(0)
+        #spaguetti.run
+            if int(line.split(";")[1][11:13]) == counter:
+                 #perfect, current hour is consecutive to previous
+                 consumption_kwh.append(int(line.split(";")[3])/1000)
+                 counter = (counter + 1) % 24
+                 last_date_hour = line.split(";")[1]
+            elif last_date_hour == line.split(";")[1]:
+                 #october hour change 0-1-2-2-3-4
+                 consumption_kwh.append(int(line.split(";")[3])/1000)
+            elif "/03/" in line.split(";")[1] and counter == 2 and int(line.split(";")[1][8:10]) in range (25,32):
+                 #march hour change 0-1-3-4
+                 consumption_kwh.append(int(line.split(";")[3])/1000)
+                 counter = (counter + 2) % 24
             else:
-                 p2.append(curr_consumption) #low hours consumption
-                 p1.append(0)
-        return start_date, end_date, p1, p2
+                 #value is missing, append 0 to keep correct length
+                 consumption_kwh.append(0)
+                 counter = (counter + 1) % 24
+                 print("--------------------ATTENTION: SOME VALUES ARE MISSING FOR THIS SIMULATION---------------------")
+        return start_date, end_date, consumption_kwh
 
     def get_hourly_consumption_by_invoice(self,invoice_number,start_date,end_date):
         """Returns hour consumption by invoice.This DOES return R and E consumptions, so it's better for costs comparison"""
@@ -149,22 +161,12 @@ class Iber:
             raise ResponseException
         if not response.text:
             raise NoResponseException
-        p1 = []
-        p2 = []
+        consumption_kwh = []
         csvdata = StringIO(response.text)
         next(csvdata)
         for line in csvdata:
-            curr_hour = int(line.split(";")[2])
-            curr_consumption = float(line.split(";")[3].replace(',','.'))
-            curr_day = datetime.strptime(line.split(";")[1], '%d/%m/%Y')
-            summer_flag = int(curr_day.timetuple().tm_yday in range(80,266))
-            if (12 + summer_flag) < curr_hour <= (22 + summer_flag):
-                 p1.append(curr_consumption) #peak hours consumption
-                 p2.append(0)
-            else:
-                 p2.append(curr_consumption) #low hours consumption
-                 p1.append(0)
-        return start_date, end_date, p1, p2
+            consumption_kwh.append(float(line.split(";")[3].replace(',','.')))
+        return start_date, end_date, consumption_kwh
 
     def get_consumption(self,index):
         """Returns consumptions. Index 0 means current consumption not yet invoiced. Bigger indexes returns consumption by every already created invoice"""
@@ -175,86 +177,84 @@ class Iber:
             start_date = datetime.strptime(start_date, '%d/%m/%Y')
             start_date = start_date + relativedelta(days=1)
             end_date = self.today
-            start_date, end_date, p1, p2 = self.get_hourly_consumption(start_date,end_date)
+            start_date, end_date, consumption_kwh = self.get_hourly_consumption(start_date,end_date)
         else:
             invoice = self.get_invoice(index-1)
             start_date = invoice['fechaDesde']
             start_date = datetime.strptime(start_date, '%d/%m/%Y')
             end_date = invoice['fechaHasta']
             end_date = datetime.strptime(end_date, '%d/%m/%Y')
-            start_date, end_date, p1, p2 = self.get_hourly_consumption_by_invoice(invoice['numero'],start_date,end_date)
-        return start_date, end_date, p1, p2
+            start_date, end_date, consumption_kwh = self.get_hourly_consumption_by_invoice(invoice['numero'],start_date,end_date)
+        return start_date, end_date, consumption_kwh
+
+    async def get(self,url,headers):
+        """async request.GET to speedup REE data fetch"""
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url, headers=headers) as response:
+                if response.status != 200:
+                     raise ResponseException
+                if not response.text:
+                     raise NoResponseException
+                return await response.json()
 
     def get_ree_data(self,token,start_date,end_date):
         """Returns energy & toll prices from REE"""
-        IDprices20_total = '1013'
         IDtoll20 = '1018'
-        IDprices20DHA_total = '1014'
+        IDprices20_total = '1013'
         IDtoll20DHA = '1025'
+        IDprices20DHA_total = '1014'
+
+        toll20 = []
+        energy20 = []
+        toll20DHA = []
+        energy20DHA = []
+        peak_mask = []
+
+        url_0 = self.__ree_api_url.format(IDtoll20,str(start_date.strftime('%Y-%m-%d')),str(end_date.strftime('%Y-%m-%d')))
+        url_1 = self.__ree_api_url.format(IDprices20_total,str(start_date.strftime('%Y-%m-%d')),str(end_date.strftime('%Y-%m-%d')))
+        url_2 = self.__ree_api_url.format(IDtoll20DHA,str(start_date.strftime('%Y-%m-%d')),str(end_date.strftime('%Y-%m-%d')))
+        url_3 = self.__ree_api_url.format(IDprices20DHA_total,str(start_date.strftime('%Y-%m-%d')),str(end_date.strftime('%Y-%m-%d')))
         self.__headers_ree['Authorization'] = "Token token=" + token
 
-        response = self.__session.request("GET", self.__ree_api_url.format(IDtoll20,str(start_date.strftime('%Y-%m-%d')),str(end_date.strftime('%Y-%m-%d'))), headers=self.__headers_ree)
-        if response.status_code != 200:
-            raise ResponseException
-        if not response.text:
-            raise NoResponseException
-        json_response = response.json()
-        toll20 = []
-        for i in range(len(json_response['indicator']['values'])):
-            toll20.append(self.roundup(float(json_response['indicator']['values'][i]['value'])/1000, 6))
+        loop = asyncio.get_event_loop()
+        parallel_http_get = [self.get(url_0, self.__headers_ree),self.get(url_1, self.__headers_ree),self.get(url_2, self.__headers_ree),self.get(url_3, self.__headers_ree)]
+        results = loop.run_until_complete(asyncio.gather(*parallel_http_get))
 
-        response = self.__session.request("GET", self.__ree_api_url.format(IDprices20_total,str(start_date.strftime('%Y-%m-%d')),str(end_date.strftime('%Y-%m-%d'))), headers=self.__headers_ree)
-        if response.status_code != 200:
-            raise ResponseException
-        if not response.text:
-            raise NoResponseException
-        json_response = response.json()
-        energy20 = []
-        for i in range(len(json_response['indicator']['values'])):
-            energy20.append(self.roundup(float(json_response['indicator']['values'][i]['value'])/1000, 6) - toll20[i])
+        for i in range(len(results[0]['indicator']['values'])):
+            toll20.append(self.roundup(float(results[0]['indicator']['values'][i]['value'])/1000, 6))
+            energy20.append(self.roundup(float(results[1]['indicator']['values'][i]['value'])/1000, 6) - toll20[i])
+            toll20DHA.append(self.roundup(float(results[2]['indicator']['values'][i]['value'])/1000, 6))
+            energy20DHA.append(self.roundup(float(results[3]['indicator']['values'][i]['value'])/1000, 6) - toll20DHA[i])
+            summer_flag = int("+02:00" in results[0]['indicator']['values'][i]['datetime'])
+            is_it_peak_hour = int(results[0]['indicator']['values'][i]['datetime'][11:13]) in range(12+summer_flag,22+summer_flag)
+            peak_mask.append(is_it_peak_hour)
 
-
-        response = self.__session.request("GET", self.__ree_api_url.format(IDtoll20DHA,str(start_date.strftime('%Y-%m-%d')),str(end_date.strftime('%Y-%m-%d'))), headers=self.__headers_ree)
-        if response.status_code != 200:
-            raise ResponseException
-        if not response.text:
-            raise NoResponseException
-        json_response = response.json()
-        toll20DHA = []
-        for i in range(len(json_response['indicator']['values'])):
-            toll20DHA.append(self.roundup(float(json_response['indicator']['values'][i]['value'])/1000, 6))
-
-        response = self.__session.request("GET", self.__ree_api_url.format(IDprices20DHA_total,str(start_date.strftime('%Y-%m-%d')),str(end_date.strftime('%Y-%m-%d'))), headers=self.__headers_ree)
-        if response.status_code != 200:
-            raise ResponseException
-        if not response.text:
-            raise NoResponseException
-        json_response = response.json()
-        energy20DHA = []
-        for i in range(len(json_response['indicator']['values'])):
-            energy20DHA.append(self.roundup(float(json_response['indicator']['values'][i]['value'])/1000, 6) - toll20DHA[i])
-
-        return energy20, toll20, energy20DHA, toll20DHA
+        return energy20, toll20, energy20DHA, toll20DHA, peak_mask
 
     def roundup(self, num, ndecimals):
         return float(round(Decimal(str(num)),ndecimals))
 
     def calculate_invoice_PVPC(self, token, index):
         """Returns cost of same consumptions on pvpc . Index 0 means current consumption not yet invoiced. Bigger indexes returns costs of every already created invoice"""
-        start_date, end_date, p1, p2 = self.get_consumption(index)
-        energy20, toll20, energy20DHA, toll20DHA = self.get_ree_data(token,start_date,end_date)
+        start_date, end_date, consumption_kwh = self.get_consumption(index)
+        energy20, toll20, energy20DHA, toll20DHA, peak_mask = self.get_ree_data(token,start_date,end_date)
+        p1 = []
+        p2 = []
+        for i in range(len(consumption_kwh)):
+            p1.append(int(peak_mask[i]) * consumption_kwh[i])
+            p2.append(int(not(peak_mask[i])) * consumption_kwh[i])
+
         ndays = (end_date - start_date).days+1
         pot = (self.contract()['potMaxima'])/1000
-        print("\nDESDE: "+start_date.strftime('%d-%m-%Y')+"\nHASTA: "+end_date.strftime('%d-%m-%Y')+"\nDIAS: "+str(ndays)+"\nPOTENCIA: "+str(pot)+"KW\nCONSUMO PUNTA P1: " + '{0:.2f}'.format(sum(p1))+ "kwh"+"\nCONSUMO VALLE P2: "+ '{0:.2f}'.format(sum(p2))+ "kwh\n")
         average_price_energy20 = 0
         average_price_toll20 = 0
         average_price_energy20DHA_peak = 0
         average_price_toll20DHA_peak = 0
         average_price_energy20DHA_low = 0
         average_price_toll20DHA_low = 0
-        for i in range(len(p1)):
-            average_price_energy20 = average_price_energy20 + (p1[i]*energy20[i] + p2[i]*energy20[i])/(sum(p1)+sum(p2))
-            average_price_toll20 = average_price_toll20 + (p1[i]*toll20[i] + p2[i]*toll20[i])/(sum(p1)+sum(p2))
+        for i in range(len(consumption_kwh)):
+            average_price_energy20 = average_price_energy20 + (consumption_kwh[i]*energy20[i])/(sum(consumption_kwh))
+            average_price_toll20 = average_price_toll20 + (consumption_kwh[i]*toll20[i])/(sum(consumption_kwh))
 
             average_price_energy20DHA_peak = average_price_energy20DHA_peak + (p1[i]*energy20DHA[i])/sum(p1)
             average_price_toll20DHA_peak = average_price_toll20DHA_peak + (p1[i]*toll20DHA[i])/sum(p1)
@@ -263,7 +263,7 @@ class Iber:
             average_price_toll20DHA_low = average_price_toll20DHA_low + (p2[i]*toll20DHA[i])/sum(p2)
 
         power_cost = pot * (38.043426+3.113)/(365+int(calendar.isleap(start_date.year))) * ndays
-        energy_cost_20 = self.roundup(average_price_energy20*(self.roundup(sum(p1)+sum(p2),1)),2) + self.roundup(average_price_toll20*(self.roundup(sum(p1)+sum(p2),1)),2)
+        energy_cost_20 = self.roundup(average_price_energy20*(self.roundup(sum(consumption_kwh),1)),2) + self.roundup(average_price_toll20*(self.roundup(sum(consumption_kwh),1)),2)
         energy_cost_20DHA = self.roundup(average_price_energy20DHA_peak*(self.roundup(sum(p1),1)),2) + self.roundup(average_price_toll20DHA_peak*(self.roundup(sum(p1),1)),2) + self.roundup(average_price_energy20DHA_low*(self.roundup(sum(p2),1)),2) + self.roundup(average_price_toll20DHA_low*(self.roundup(sum(p2),1)),2)
         energy_and_power_cost_20 = energy_cost_20 + power_cost
         energy_and_power_cost_20DHA = energy_cost_20DHA + power_cost
@@ -288,6 +288,7 @@ class Iber:
         total_plus_vat_other = total_other + VAT_other
 ############################################################################################
 
+        print("\nDESDE: "+start_date.strftime('%d-%m-%Y')+"\nHASTA: "+end_date.strftime('%d-%m-%Y')+"\nDIAS: "+str(ndays)+"\nPOTENCIA: "+str(pot)+"KW\nCONSUMO PUNTA P1: " + '{0:.2f}'.format(sum(p1))+ "kwh"+"\nCONSUMO VALLE P2: "+ '{0:.2f}'.format(sum(p2))+ "kwh\n")
         print('{:<30} {:<30} {:<30}'.format("PVPC 2.0A price", "PVPC 2.0DHA price", "SOM ENERGIA 2.0DHA price"))
         print("-----------------------------------------------------------------------------------------")
         print('{:<30} {:<30} {:<30}'.format("Power cost: "+'{0:.2f}'.format(power_cost)+"€", "Power cost: "+'{0:.2f}'.format(power_cost)+"€", "Power cost: "+'{0:.2f}'.format(power_cost_other)+"€"))
