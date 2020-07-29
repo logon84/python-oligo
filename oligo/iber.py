@@ -128,28 +128,30 @@ class Iber:
         if not response.text:
             raise NoResponseException
         consumption_kwh = []
-        counter = 1
-        last_date_hour = 0
         csvdata = StringIO(response.text)
         next(csvdata)
+        last_date = start_date
         for line in csvdata:
-        #spaguetti.run
-            if int(line.split(";")[1][11:13]) == counter:
+            #spaguetti.run
+            current_date = datetime.strptime(line.split(";")[1], '%Y/%m/%d %H:%M')
+            if current_date == last_date + relativedelta(hours=1):
                  #perfect, current hour is consecutive to previous
                  consumption_kwh.append(int(line.split(";")[3])/1000)
-                 counter = (counter + 1) % 24
-                 last_date_hour = line.split(";")[1]
-            elif last_date_hour == line.split(";")[1]:
+                 last_date = current_date
+            elif current_date == last_date:
                  #october hour change 0-1-2-2-3-4
                  consumption_kwh.append(int(line.split(";")[3])/1000)
-            elif "/03/" in line.split(";")[1] and counter == 2 and int(line.split(";")[1][8:10]) in range (25,32):
+            elif current_date.month == 3 and current_date.day in range (25,32) and current_date.isoweekday() == 7 and current_date.hour == 3:
                  #march hour change 0-1-3-4
                  consumption_kwh.append(int(line.split(";")[3])/1000)
-                 counter = (counter + 2) % 24
+                 last_date = current_date + relativedelta(hours=1)
             else:
-                 #value is missing, append 0 to keep correct length
-                 consumption_kwh.append(0)
-                 counter = (counter + 1) % 24
+                 #value is missing, append 0's to keep correct length
+                 while current_date > (last_date + relativedelta(hours=1)):
+                       consumption_kwh.append(0)
+                       last_date = last_date + relativedelta(hours=1)
+                 consumption_kwh.append(int(line.split(";")[3])/1000)
+                 last_date = current_date
                  print("--------------------ATTENTION: SOME VALUES ARE MISSING FOR THIS SIMULATION---------------------")
         return start_date, end_date, consumption_kwh
 
