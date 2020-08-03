@@ -137,22 +137,20 @@ class Iber:
             if current_date == last_date + relativedelta(hours=1):
                  #perfect, current hour is consecutive to previous
                  consumption_kwh.append(int(line.split(";")[3])/1000)
-                 last_date = current_date
             elif current_date == last_date:
                  #october hour change 0-1-2-2-3-4
                  consumption_kwh.append(int(line.split(";")[3])/1000)
             elif current_date.month == 3 and current_date.day in range (25,32) and current_date.isoweekday() == 7 and current_date.hour == 3:
                  #march hour change 0-1-3-4
                  consumption_kwh.append(int(line.split(";")[3])/1000)
-                 last_date = current_date + relativedelta(hours=1)
             else:
                  #value is missing, append 0's to keep correct length
                  while current_date > (last_date + relativedelta(hours=1)):
                        consumption_kwh.append(0)
                        last_date = last_date + relativedelta(hours=1)
                  consumption_kwh.append(int(line.split(";")[3])/1000)
-                 last_date = current_date
                  print("--------------------ATTENTION: SOME VALUES ARE MISSING FOR THIS SIMULATION---------------------")
+            last_date = current_date
         return start_date, end_date, consumption_kwh
 
     def get_hourly_consumption_by_invoice(self,invoice_number,start_date,end_date):
