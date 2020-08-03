@@ -122,7 +122,7 @@ class Iber:
         max_date = self.get_last_day_with_recorded_data()
         if end_date > max_date:
             end_date = max_date
-        response = self.__session.request("GET", self.__consumption_between_dates_csv_url.format(str(start_date.strftime('%d-%m-%Y')),str(end_date.strftime('%d-%m-%Y'))), headers=self.__headers_i_de)
+        response = self.__session.request("GET", self.__consumption_between_dates_csv_url.format(start_date.strftime('%d-%m-%Y'),end_date.strftime('%d-%m-%Y')), headers=self.__headers_i_de)
         if response.status_code != 200:
             raise ResponseException
         if not response.text:
@@ -158,7 +158,7 @@ class Iber:
     def get_hourly_consumption_by_invoice(self,invoice_number,start_date,end_date):
         """Returns hour consumption by invoice.This DOES return R and E consumptions, so it's better for costs comparison"""
         self.__check_session()
-        response = self.__session.request("GET", self.__consumption_by_invoice_csv_url.format(invoice_number,str(start_date.strftime('%d-%m-%Y')),end_date.strftime('%d-%m-%Y')), headers=self.__headers_i_de)
+        response = self.__session.request("GET", self.__consumption_by_invoice_csv_url.format(invoice_number,start_date.strftime('%d-%m-%Y'),end_date.strftime('%d-%m-%Y')), headers=self.__headers_i_de)
         if response.status_code != 200:
             raise ResponseException
         if not response.text:
@@ -212,10 +212,10 @@ class Iber:
         energy20DHA = []
         peak_mask = []
 
-        url_0 = self.__ree_api_url.format(IDtoll20,str(start_date.strftime('%Y-%m-%d')),str(end_date.strftime('%Y-%m-%d')))
-        url_1 = self.__ree_api_url.format(IDprices20_total,str(start_date.strftime('%Y-%m-%d')),str(end_date.strftime('%Y-%m-%d')))
-        url_2 = self.__ree_api_url.format(IDtoll20DHA,str(start_date.strftime('%Y-%m-%d')),str(end_date.strftime('%Y-%m-%d')))
-        url_3 = self.__ree_api_url.format(IDprices20DHA_total,str(start_date.strftime('%Y-%m-%d')),str(end_date.strftime('%Y-%m-%d')))
+        url_0 = self.__ree_api_url.format(IDtoll20,start_date.strftime('%Y-%m-%d'),end_date.strftime('%Y-%m-%d'))
+        url_1 = self.__ree_api_url.format(IDprices20_total,start_date.strftime('%Y-%m-%d'),end_date.strftime('%Y-%m-%d'))
+        url_2 = self.__ree_api_url.format(IDtoll20DHA,start_date.strftime('%Y-%m-%d'),end_date.strftime('%Y-%m-%d'))
+        url_3 = self.__ree_api_url.format(IDprices20DHA_total,start_date.strftime('%Y-%m-%d'),end_date.strftime('%Y-%m-%d'))
         self.__headers_ree['Authorization'] = "Token token=" + token
 
         loop = asyncio.get_event_loop()
@@ -279,6 +279,7 @@ class Iber:
         total_plus_vat_20 = total_20 + VAT_20
         total_plus_vat_20DHA = total_20DHA + VAT_20DHA
 #####################_____OTHER_COMPARISON (fill values)_____###############################
+        name_other = "SOM ENERGIA 2.0DHA"
         power_cost_other = pot * (38.043426/(365+int(calendar.isleap(start_date.year)))) * ndays
         energy_cost_other = sum(p1) * 0.161 + sum(p2) * 0.082
         energy_and_power_cost_other = energy_cost_other + power_cost_other
@@ -291,7 +292,7 @@ class Iber:
 ############################################################################################
 
         print("\nDESDE: "+start_date.strftime('%d-%m-%Y')+"\nHASTA: "+end_date.strftime('%d-%m-%Y')+"\nDIAS: "+str(ndays)+"\nPOTENCIA: "+str(pot)+"KW\nCONSUMO PUNTA P1: " + '{0:.2f}'.format(sum(p1))+ "kwh"+"\nCONSUMO VALLE P2: "+ '{0:.2f}'.format(sum(p2))+ "kwh\n")
-        print('{:<30} {:<30} {:<30}'.format("PVPC 2.0A price", "PVPC 2.0DHA price", "SOM ENERGIA 2.0DHA price"))
+        print('{:<30} {:<30} {:<30}'.format("PVPC 2.0A price", "PVPC 2.0DHA price", name_other + " price"))
         print("-----------------------------------------------------------------------------------------")
         print('{:<30} {:<30} {:<30}'.format("Power cost: "+'{0:.2f}'.format(power_cost)+"€", "Power cost: "+'{0:.2f}'.format(power_cost)+"€", "Power cost: "+'{0:.2f}'.format(power_cost_other)+"€"))
         print('{:<30} {:<30} {:<30}'.format("Energy cost: "+'{0:.2f}'.format(energy_cost_20)+"€", "Energy cost: "+'{0:.2f}'.format(energy_cost_20DHA)+"€", "Energy cost: "+'{0:.2f}'.format(energy_cost_other)+"€"))
