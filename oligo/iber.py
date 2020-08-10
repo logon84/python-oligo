@@ -134,22 +134,14 @@ class Iber:
         for line in csvdata:
             #spaguetti.run
             current_date = datetime.strptime(line.split(";")[1], '%Y/%m/%d %H:%M')
-            if current_date == last_date + relativedelta(hours=1):
-                 #perfect, current hour is consecutive to previous
-                 consumption_kwh.append(int(line.split(";")[3])/1000)
-            elif current_date == last_date:
-                 #october hour change 0-1-2-2-3-4
-                 consumption_kwh.append(int(line.split(";")[3])/1000)
-            elif current_date.month == 3 and current_date.day in range (25,32) and current_date.isoweekday() == 7 and current_date.hour == 3:
-                 #march hour change 0-1-3-4
-                 consumption_kwh.append(int(line.split(";")[3])/1000)
-            else:
-                 #value is missing, append 0's to keep correct length
+            if not(current_date == last_date + relativedelta(hours=1)) and not(current_date == last_date) and not(current_date.month == 3 and current_date.day in range (25,32) and current_date.isoweekday() == 7 and current_date.hour == 3):
+                 #NOT(current hour is consecutive to previous) and NOT(october hour change 0-1-2-2-3-4) and NOT(march hour change 0-1-3-4)
+                 #value missing detected, fill with 0's
                  while current_date > (last_date + relativedelta(hours=1)):
                        consumption_kwh.append(0)
                        last_date = last_date + relativedelta(hours=1)
-                 consumption_kwh.append(int(line.split(";")[3])/1000)
                  print("--------------------ATTENTION: SOME VALUES ARE MISSING FOR THIS SIMULATION---------------------")
+            consumption_kwh.append(int(line.split(";")[3])/1000)
             last_date = current_date
         return start_date, end_date, consumption_kwh
 
