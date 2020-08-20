@@ -254,7 +254,7 @@ class Iber:
             average_price_energy20DHA_low = average_price_energy20DHA_low + (p2[i]*energy20DHA[i])/sum(p2)
             average_price_toll20DHA_low = average_price_toll20DHA_low + (p2[i]*toll20DHA[i])/sum(p2)
 
-        power_cost = pot * (38.043426+3.113)/(365+int(calendar.isleap(start_date.year))) * ndays
+        power_cost = self.roundup(pot * ndays * 38.043426/(365+int(calendar.isleap(start_date.year))),2) + self.roundup(pot * ndays * 3.113/(365+int(calendar.isleap(start_date.year))),2)
         energy_cost_20 = self.roundup(average_price_energy20*(self.roundup(sum(consumption_kwh),1)),2) + self.roundup(average_price_toll20*(self.roundup(sum(consumption_kwh),1)),2)
         energy_cost_20DHA = self.roundup(average_price_energy20DHA_peak*(self.roundup(sum(p1),1)),2) + self.roundup(average_price_toll20DHA_peak*(self.roundup(sum(p1),1)),2) + self.roundup(average_price_energy20DHA_low*(self.roundup(sum(p2),1)),2) + self.roundup(average_price_toll20DHA_low*(self.roundup(sum(p2),1)),2)
         energy_and_power_cost_20 = energy_cost_20 + power_cost
@@ -271,7 +271,7 @@ class Iber:
 #####################_____OTHER_COMPARISON (fill values)_____###############################
         name_other = "SOM ENERGIA 2.0DHA"
         power_cost_other = pot * (38.043426/(365+int(calendar.isleap(start_date.year)))) * ndays
-        energy_cost_other = sum(p1) * 0.161 + sum(p2) * 0.082
+        energy_cost_other = sum(p1) * 0.147 + sum(p2) * 0.075
         energy_and_power_cost_other = energy_cost_other + power_cost_other
         social_bonus = 0.02 * ndays
         energy_tax_other = (energy_and_power_cost_other + social_bonus)*0.0511269632
@@ -290,6 +290,7 @@ class Iber:
         print('{:<30} {:<30} {:<30}'.format("Measure equipments: "+'{0:.2f}'.format(equipment_cost)+"€", "Measure equipments: "+'{0:.2f}'.format(equipment_cost)+"€", "Measure equipments: "+'{0:.2f}'.format(equipment_cost_other)+"€"))
         print('{:<30} {:<30} {:<30}'.format("VAT: "+'{0:.2f}'.format(VAT_20)+"€", "VAT: "+'{0:.2f}'.format(VAT_20DHA)+"€", "VAT: "+'{0:.2f}'.format(VAT_other)+"€"))
         print('{:<30} {:<30} {:<30}'.format("TOTAL: "+'{0:.2f}'.format(total_plus_vat_20)+"€", "TOTAL: "+'{0:.2f}'.format(total_plus_vat_20DHA)+"€", "TOTAL: "+'{0:.2f}'.format(total_plus_vat_other)+"€\n\n"))
+        print(power_cost)
         return "Done"
 
     def icpstatus(self):
