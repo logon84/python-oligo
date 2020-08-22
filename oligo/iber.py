@@ -259,9 +259,9 @@ class Iber:
         energy_cost_20DHA = self.roundup(average_price_energy20DHA_peak*(self.roundup(sum(p1),1)),2) + self.roundup(average_price_toll20DHA_peak*(self.roundup(sum(p1),1)),2) + self.roundup(average_price_energy20DHA_low*(self.roundup(sum(p2),1)),2) + self.roundup(average_price_toll20DHA_low*(self.roundup(sum(p2),1)),2)
         energy_and_power_cost_20 = energy_cost_20 + power_cost
         energy_and_power_cost_20DHA = energy_cost_20DHA + power_cost
-        energy_tax_20 = energy_and_power_cost_20*0.0511269632
-        energy_tax_20DHA = energy_and_power_cost_20DHA*0.0511269632
-        equipment_cost = ndays * (0.81*12/(365+int(calendar.isleap(start_date.year))))
+        energy_tax_20 = self.roundup(energy_and_power_cost_20*0.0511269632,2)
+        energy_tax_20DHA = self.roundup(energy_and_power_cost_20DHA*0.0511269632,2)
+        equipment_cost = self.roundup(ndays * (0.81*12/(365+int(calendar.isleap(start_date.year)))),2)
         total_20 =  energy_and_power_cost_20 + energy_tax_20 + equipment_cost
         total_20DHA =  energy_and_power_cost_20DHA + energy_tax_20DHA + equipment_cost
         VAT_20 = self.roundup(total_20*0.21,2)
