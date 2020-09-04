@@ -270,13 +270,13 @@ class Iber:
         total_plus_vat_20DHA = total_20DHA + VAT_20DHA
 #####################_____OTHER_COMPARISON (fill values)_____###############################
         name_other = "SOM ENERGIA 2.0DHA"
-        power_cost_other = pot * (38.043426/(365+int(calendar.isleap(start_date.year)))) * ndays
-        energy_cost_other = sum(p1) * 0.147 + sum(p2) * 0.075
+        power_cost_other = self.roundup(pot * (38.043426/(365+int(calendar.isleap(start_date.year)))) * ndays,2)
+        energy_cost_other = self.roundup(sum(p1) * 0.147 + sum(p2) * 0.075,2)
         energy_and_power_cost_other = energy_cost_other + power_cost_other
-        social_bonus = 0.02 * ndays
-        energy_tax_other = (energy_and_power_cost_other + social_bonus)*0.0511269632
-        equipment_cost_other = ndays *(0.81*12)/(365+int(calendar.isleap(start_date.year)))
-        total_other = energy_and_power_cost_other + energy_tax_other + equipment_cost_other + social_bonus
+        social_bonus_other = 0.02 * ndays
+        energy_tax_other = self.roundup((energy_and_power_cost_other + social_bonus_other)*0.0511269632,2)
+        equipment_cost_other = self.roundup(ndays *(0.81*12)/(365+int(calendar.isleap(start_date.year))),2)
+        total_other = energy_and_power_cost_other + energy_tax_other + equipment_cost_other + social_bonus_other
         VAT_other = self.roundup(total_other*0.21,2)
         total_plus_vat_other = total_other + VAT_other
 ############################################################################################
@@ -287,6 +287,7 @@ class Iber:
         print('{:<30} {:<30} {:<30}'.format("Power cost: "+'{0:.2f}'.format(power_cost)+"€", "Power cost: "+'{0:.2f}'.format(power_cost)+"€", "Power cost: "+'{0:.2f}'.format(power_cost_other)+"€"))
         print('{:<30} {:<30} {:<30}'.format("Energy cost: "+'{0:.2f}'.format(energy_cost_20)+"€", "Energy cost: "+'{0:.2f}'.format(energy_cost_20DHA)+"€", "Energy cost: "+'{0:.2f}'.format(energy_cost_other)+"€"))
         print('{:<30} {:<30} {:<30}'.format("Electric tax: "+'{0:.2f}'.format(energy_tax_20)+"€", "Electric tax: "+'{0:.2f}'.format(energy_tax_20DHA)+"€", "Electric tax: "+'{0:.2f}'.format(energy_tax_other)+"€"))
+        print('{:<30} {:<30} {:<30}'.format("Social bonus: "+'{0:.2f}'.format(0)+"€", "Social bonus: "+'{0:.2f}'.format(0)+"€", "Social bonus: "+'{0:.2f}'.format(social_bonus_other)+"€"))
         print('{:<30} {:<30} {:<30}'.format("Measure equipments: "+'{0:.2f}'.format(equipment_cost)+"€", "Measure equipments: "+'{0:.2f}'.format(equipment_cost)+"€", "Measure equipments: "+'{0:.2f}'.format(equipment_cost_other)+"€"))
         print('{:<30} {:<30} {:<30}'.format("VAT: "+'{0:.2f}'.format(VAT_20)+"€", "VAT: "+'{0:.2f}'.format(VAT_20DHA)+"€", "VAT: "+'{0:.2f}'.format(VAT_other)+"€"))
         print('{:<30} {:<30} {:<30}'.format("TOTAL: "+'{0:.2f}'.format(total_plus_vat_20)+"€", "TOTAL: "+'{0:.2f}'.format(total_plus_vat_20DHA)+"€", "TOTAL: "+'{0:.2f}'.format(total_plus_vat_other)+"€\n\n"))
