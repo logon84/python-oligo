@@ -196,9 +196,7 @@ class Iber:
         IDtoll20DHA = '1025'
         IDprices20DHA_total = '1014'
 
-        toll20 = []
         energy20 = []
-        toll20DHA = []
         energy20DHA = []
         peak_mask = []
 
@@ -213,15 +211,15 @@ class Iber:
         results = loop.run_until_complete(asyncio.gather(*parallel_http_get))
 
         for i in range(len(results[0]['indicator']['values'])):
-            toll20.append(self.roundup(float(results[0]['indicator']['values'][i]['value'])/1000, 6))
-            energy20.append(self.roundup(float(results[1]['indicator']['values'][i]['value'])/1000, 6) - toll20[i])
-            toll20DHA.append(self.roundup(float(results[2]['indicator']['values'][i]['value'])/1000, 6))
-            energy20DHA.append(self.roundup(float(results[3]['indicator']['values'][i]['value'])/1000, 6) - toll20DHA[i])
+            toll20 = self.roundup(float(results[0]['indicator']['values'][i]['value'])/1000, 6)
+            energy20.append(self.roundup(float(results[1]['indicator']['values'][i]['value'])/1000, 6) - toll20)
+            toll20DHA = self.roundup(float(results[2]['indicator']['values'][i]['value'])/1000, 6)
+            energy20DHA.append(self.roundup(float(results[3]['indicator']['values'][i]['value'])/1000, 6) - toll20DHA)
             summer_flag = int("+02:00" in results[0]['indicator']['values'][i]['datetime'])
             is_it_peak_hour = int(results[0]['indicator']['values'][i]['datetime'][11:13]) in range(12+summer_flag,22+summer_flag)
             peak_mask.append(is_it_peak_hour)
 
-        return energy20, toll20, energy20DHA, toll20DHA, peak_mask
+        return energy20, energy20DHA, peak_mask
 
     def roundup(self, num, ndecimals):
         return float(round(Decimal(str(num)),ndecimals))
@@ -229,7 +227,7 @@ class Iber:
     def calculate_invoice_PVPC(self, token, index):
         """Returns cost of same consumptions on pvpc . Index 0 means current consumption not yet invoiced. Bigger indexes returns costs of every already created invoice"""
         start_date, end_date, consumption_kwh = self.get_consumption(index)
-        energy20, toll20, energy20DHA, toll20DHA, peak_mask = self.get_ree_data(token,start_date,end_date)
+        energy20, energy20DHA, peak_mask = self.get_ree_data(token,start_date,end_date)
         p1 = []
         p2 = []
         for i in range(len(consumption_kwh)):
@@ -239,20 +237,16 @@ class Iber:
         ndays = (end_date - start_date).days+1
         pot = (self.contract()['potMaxima'])/1000
         average_price_energy20 = 0
-        average_price_toll20 = 0
+        average_price_toll20 = 0.044027
         average_price_energy20DHA_peak = 0
-        average_price_toll20DHA_peak = 0
         average_price_energy20DHA_low = 0
-        average_price_toll20DHA_low = 0
+        average_price_toll20DHA_peak = 0.062012
+        average_price_toll20DHA_low = 0.002215
+
         for i in range(len(consumption_kwh)):
-            average_price_energy20 = average_price_energy20 + (consumption_kwh[i]*energy20[i])/(sum(consumption_kwh))
-            average_price_toll20 = average_price_toll20 + (consumption_kwh[i]*toll20[i])/(sum(consumption_kwh))
-
+            average_price_energy20 = average_price_energy20 + (consumption_kwh[i]*energy20[i])/sum(consumption_kwh)
             average_price_energy20DHA_peak = average_price_energy20DHA_peak + (p1[i]*energy20DHA[i])/sum(p1)
-            average_price_toll20DHA_peak = average_price_toll20DHA_peak + (p1[i]*toll20DHA[i])/sum(p1)
-
             average_price_energy20DHA_low = average_price_energy20DHA_low + (p2[i]*energy20DHA[i])/sum(p2)
-            average_price_toll20DHA_low = average_price_toll20DHA_low + (p2[i]*toll20DHA[i])/sum(p2)
 
         power_cost = self.roundup(pot * ndays * 38.043426/(365+int(calendar.isleap(start_date.year))),2) + self.roundup(pot * ndays * 3.113/(365+int(calendar.isleap(start_date.year))),2)
         energy_cost_20 = self.roundup(average_price_energy20*(self.roundup(sum(consumption_kwh),1)),2) + self.roundup(average_price_toll20*(self.roundup(sum(consumption_kwh),1)),2)
