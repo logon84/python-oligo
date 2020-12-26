@@ -13,6 +13,7 @@ ree_token = "ree_token_here"
 
 connection = Iber()
 connection.login(user_i_de, passw_i_de)
+print(connection.get_PS_info())
 
 #x = connection.watthourmeter()
 #x = connection.get_invoice(5)
