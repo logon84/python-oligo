@@ -37,6 +37,7 @@ class Iber:
     __contracts_url = __domain + "/consumidores/rest/cto/listaCtos/"
     __contract_detail_url = __domain + "/consumidores/rest/detalleCto/detalle/"
     __contract_selection_url = __domain + "/consumidores/rest/cto/seleccion/"
+    __ps_info_url = __domain + "/consumidores/rest/infoPS/datos/"
     today = datetime.now()
     twoyearsago =  today - relativedelta(years=2)
     __invoice_list_url = __domain + "/consumidores/rest/consumoNew/obtenerDatosFacturasConsumo/fechaInicio/{0}/fechaFinal/{1}".format(twoyearsago.strftime("%d-%m-%Y%H:%M:%S"),today.strftime("%d-%m-%Y%H:%M:%S"))
@@ -127,6 +128,7 @@ class Iber:
             raise ResponseException
         if not response.text:
             raise NoResponseException
+        counter = 0
         consumption_kwh = []
         csvdata = StringIO(response.text)
         next(csvdata)
@@ -140,7 +142,8 @@ class Iber:
                  while current_date > (last_date + relativedelta(hours=1)):
                        consumption_kwh.append(0)
                        last_date = last_date + relativedelta(hours=1)
-                 print("--------------------ATTENTION: SOME VALUES ARE MISSING FOR THIS SIMULATION---------------------")
+                       counter = counter + 1
+                 print("--------------------ATTENTION: SOME VALUES ARE MISSING FOR THIS SIMULATION---------------------(" + str(counter) + ")")
             consumption_kwh.append(int(line.split(";")[3])/1000)
             last_date = current_date
         return start_date, end_date, consumption_kwh
@@ -254,9 +257,19 @@ class Iber:
         total_plus_vat_20 = total_20 + VAT_20
         total_plus_vat_20DHA = total_20DHA + VAT_20DHA
 #####################_____OTHER_COMPARISON (fill values)_____###############################
-        name_other = "SOM ENERGIA 2.0DHA"
-        power_cost_other = self.roundup(pot * (38.043426/(365+int(calendar.isleap(start_date.year)))) * ndays,2)
-        energy_cost_other = self.roundup(sum(p1) * 0.147 + sum(p2) * 0.075,2)
+#        name_other = "SOM ENERGIA 2.0DHA"
+#        power_cost_other = self.roundup(pot * (38.043426/(365+int(calendar.isleap(start_date.year)))) * ndays,2)
+#        energy_cost_other = self.roundup(sum(p1) * 0.147 + sum(p2) * 0.075,2)
+#        energy_and_power_cost_other = energy_cost_other + power_cost_other
+#        social_bonus_other = 0.02 * ndays
+#        energy_tax_other = self.roundup((energy_and_power_cost_other + social_bonus_other)*0.0511269632,2)
+#        equipment_cost_other = self.roundup(ndays *(0.81*12)/(365+int(calendar.isleap(start_date.year))),2)
+#        total_other = energy_and_power_cost_other + energy_tax_other + equipment_cost_other + social_bonus_other
+#        VAT_other = self.roundup(total_other*0.21,2)
+#        total_plus_vat_other = total_other + VAT_other
+        name_other = "IBERDROLA 2.0DHA"
+        power_cost_other = self.roundup(pot * (45/(365+int(calendar.isleap(start_date.year)))) * ndays,2)
+        energy_cost_other = self.roundup(sum(p1) * 0.134579 + sum(p2) * 0.067519,2)
         energy_and_power_cost_other = energy_cost_other + power_cost_other
         social_bonus_other = 0.02 * ndays
         energy_tax_other = self.roundup((energy_and_power_cost_other + social_bonus_other)*0.0511269632,2)
@@ -322,3 +335,17 @@ class Iber:
         json_response = response.json()
         if not json_response["success"]:
             raise SelectContractException
+
+    def get_PS_info(self):
+        self.__check_session()
+        response = self.__session.request("GET", self.__ps_info_url, headers=self.__headers_i_de)
+        if response.status_code != 200:
+            raise ResponseException
+        if not response.text:
+            raise NoResponseException
+        json_response = response.json()
+        if json_response["modoFacturacion"] == "   ":
+              modo_f = "1"
+        else:
+              modo_f = json_response["modoFacturacion"]
+        return "\n\n\t\tComercializadora: " + json_response["des_EPS_COM_VIG"] + "\n\t\tTarifa: " + json_response["cod_TARIFA_TF_Descripcion"] + "\n\t\tPotencia: " + json_response["val_POT_P1"] + "W\n\t\tMODO: " + modo_f + "\n\t\tTensión: " + json_response["val_TENSION_PTO_SUMIN"] + "V\n"
