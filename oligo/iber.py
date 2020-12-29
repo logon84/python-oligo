@@ -389,9 +389,6 @@ class Iber:
         return
 
     def get_anual_report(self,token):
-        self.get_PS_info()
-        self.get_power_peaks(self.today.strftime("%Y"))
-        self.get_power_peaks((self.today - relativedelta(years=1)).strftime("%Y"))
         totals = [0,0,0]
         for i in range(13,0,-1):
             x = self.calculate_invoice_PVPC(token, i)
