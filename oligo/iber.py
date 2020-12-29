@@ -38,6 +38,8 @@ class Iber:
     __contract_detail_url = __domain + "/consumidores/rest/detalleCto/detalle/"
     __contract_selection_url = __domain + "/consumidores/rest/cto/seleccion/"
     __ps_info_url = __domain + "/consumidores/rest/infoPS/datos/"
+    __power_peak_dates_url = __domain + "/consumidores/rest/consumoNew/obtenerLimitesFechasPotencia/"
+    __power_peak_url = __domain + "/consumidores/rest/consumoNew/obtenerPotenciasMaximas/{0}"
     today = datetime.now()
     twoyearsago =  today - relativedelta(years=2)
     __invoice_list_url = __domain + "/consumidores/rest/consumoNew/obtenerDatosFacturasConsumo/fechaInicio/{0}/fechaFinal/{1}".format(twoyearsago.strftime("%d-%m-%Y%H:%M:%S"),today.strftime("%d-%m-%Y%H:%M:%S"))
@@ -93,6 +95,51 @@ class Iber:
             raise NoResponseException
         json_response = response.json()
         return json_response['valMagnitud']+"kw"
+
+    def icpstatus(self):
+        """Returns the status of your ICP."""
+        self.__check_session()
+        response = self.__session.request("POST", self.__icp_status_url, headers=self.__headers_i_de)
+        if response.status_code != 200:
+            raise ResponseException
+        if not response.text:
+            raise NoResponseException
+        json_response = response.json()
+        if json_response["icp"] == "trueConectado":
+            return True
+        else:
+            return False
+
+    def contracts(self):
+        self.__check_session()
+        response = self.__session.request("GET", self.__contracts_url, headers=self.__headers_i_de)
+        if response.status_code != 200:
+            raise ResponseException
+        if not response.text:
+            raise NoResponseException
+        json_response = response.json()
+        if json_response["success"]:
+            return json_response["contratos"]
+
+    def contract(self):
+        self.__check_session()
+        response = self.__session.request("GET", self.__contract_detail_url, headers=self.__headers_i_de)
+        if response.status_code != 200:
+            raise ResponseException
+        if not response.text:
+            raise NoResponseException
+        return response.json()
+
+    def contractselect(self, id):
+        self.__check_session()
+        response = self.__session.request("GET", self.__contract_selection_url + id, headers=self.__headers_i_de)
+        if response.status_code != 200:
+            raise ResponseException
+        if not response.text:
+            raise NoResponseException
+        json_response = response.json()
+        if not json_response["success"]:
+            raise SelectContractException
 
     def get_invoice(self,index):
         """Returns invoice data."""
@@ -243,19 +290,19 @@ class Iber:
             average_price_energy20DHA_low = average_price_energy20DHA_low + self.roundup((p2[i]*energy20DHA[i])/sum(p2),6)
 
         power_cost = self.roundup(pot * ndays * 38.043426/(365+int(calendar.isleap(start_date.year))),2) + self.roundup(pot * ndays * 3.113/(365+int(calendar.isleap(start_date.year))),2)
-        energy_cost_20 = self.roundup(average_price_energy20*(self.roundup(sum(consumption_kwh),1)),2) + self.roundup(0.044027*(self.roundup(sum(consumption_kwh),1)),2)
-        energy_cost_20DHA = self.roundup(average_price_energy20DHA_peak*(self.roundup(sum(p1),1)),2) + self.roundup(0.062012*(self.roundup(sum(p1),1)),2) + self.roundup(average_price_energy20DHA_low*(self.roundup(sum(p2),1)),2) + self.roundup(0.002215*(self.roundup(sum(p2),1)),2)
+        energy_cost_20 = self.roundup(self.roundup(average_price_energy20*(self.roundup(sum(consumption_kwh),1)),2) + self.roundup(0.044027*(self.roundup(sum(consumption_kwh),1)),2),2)
+        energy_cost_20DHA = self.roundup(self.roundup(average_price_energy20DHA_peak*(self.roundup(sum(p1),1)),2) + self.roundup(0.062012*(self.roundup(sum(p1),1)),2) + self.roundup(average_price_energy20DHA_low*(self.roundup(sum(p2),1)),2) + self.roundup(0.002215*(self.roundup(sum(p2),1)),2),2)
         energy_and_power_cost_20 = energy_cost_20 + power_cost
         energy_and_power_cost_20DHA = energy_cost_20DHA + power_cost
         energy_tax_20 = self.roundup(energy_and_power_cost_20*0.0511269632,2)
         energy_tax_20DHA = self.roundup(energy_and_power_cost_20DHA*0.0511269632,2)
         equipment_cost = self.roundup(ndays * (0.81*12/(365+int(calendar.isleap(start_date.year)))),2)
-        total_20 =  energy_and_power_cost_20 + energy_tax_20 + equipment_cost
-        total_20DHA =  energy_and_power_cost_20DHA + energy_tax_20DHA + equipment_cost
+        total_20 =  self.roundup(energy_and_power_cost_20 + energy_tax_20 + equipment_cost,2)
+        total_20DHA =  self.roundup(energy_and_power_cost_20DHA + energy_tax_20DHA + equipment_cost,2)
         VAT_20 = self.roundup(total_20*0.21,2)
         VAT_20DHA = self.roundup(total_20DHA*0.21,2)
-        total_plus_vat_20 = total_20 + VAT_20
-        total_plus_vat_20DHA = total_20DHA + VAT_20DHA
+        total_plus_vat_20 = self.roundup(total_20 + VAT_20,2)
+        total_plus_vat_20DHA = self.roundup(total_20DHA + VAT_20DHA,2)
 #####################_____OTHER_COMPARISON (fill values)_____###############################
 #        name_other = "SOM ENERGIA 2.0DHA"
 #        power_cost_other = self.roundup(pot * (38.043426/(365+int(calendar.isleap(start_date.year)))) * ndays,2)
@@ -270,15 +317,18 @@ class Iber:
         name_other = "IBERDROLA 2.0DHA"
         power_cost_other = self.roundup(pot * (45/(365+int(calendar.isleap(start_date.year)))) * ndays,2)
         energy_cost_other = self.roundup(sum(p1) * 0.134579 + sum(p2) * 0.067519,2)
-        energy_and_power_cost_other = energy_cost_other + power_cost_other
+        energy_and_power_cost_other = self.roundup(energy_cost_other + power_cost_other,2)
         social_bonus_other = 0.02 * ndays
         energy_tax_other = self.roundup((energy_and_power_cost_other + social_bonus_other)*0.0511269632,2)
         equipment_cost_other = self.roundup(ndays *(0.81*12)/(365+int(calendar.isleap(start_date.year))),2)
-        total_other = energy_and_power_cost_other + energy_tax_other + equipment_cost_other + social_bonus_other
+        total_other = self.roundup(energy_and_power_cost_other + energy_tax_other + equipment_cost_other + social_bonus_other,2)
         VAT_other = self.roundup(total_other*0.21,2)
         total_plus_vat_other = total_other + VAT_other
 ############################################################################################
-
+        if index == 0:
+            print("[CONSUMO ACTUAL]")
+        elif index > 0:
+            print("[FACTURA]")
         print("\nDESDE: "+start_date.strftime('%d-%m-%Y')+"\nHASTA: "+end_date.strftime('%d-%m-%Y')+"\nDIAS: "+str(ndays)+"\nPOTENCIA: "+str(pot)+"KW\nCONSUMO PUNTA P1: " + '{0:.2f}'.format(sum(p1))+ "kwh"+"\nCONSUMO VALLE P2: "+ '{0:.2f}'.format(sum(p2))+ "kwh\n")
         print('{:<30} {:<30} {:<30}'.format("PVPC 2.0A price", "PVPC 2.0DHA price", name_other + " price"))
         print("-----------------------------------------------------------------------------------------")
@@ -289,52 +339,7 @@ class Iber:
         print('{:<30} {:<30} {:<30}'.format("Measure equipments: "+'{0:.2f}'.format(equipment_cost)+"€", "Measure equipments: "+'{0:.2f}'.format(equipment_cost)+"€", "Measure equipments: "+'{0:.2f}'.format(equipment_cost_other)+"€"))
         print('{:<30} {:<30} {:<30}'.format("VAT: "+'{0:.2f}'.format(VAT_20)+"€", "VAT: "+'{0:.2f}'.format(VAT_20DHA)+"€", "VAT: "+'{0:.2f}'.format(VAT_other)+"€"))
         print('{:<30} {:<30} {:<30}'.format("TOTAL: "+'{0:.2f}'.format(total_plus_vat_20)+"€", "TOTAL: "+'{0:.2f}'.format(total_plus_vat_20DHA)+"€", "TOTAL: "+'{0:.2f}'.format(total_plus_vat_other)+"€\n\n"))
-        return "Done"
-
-    def icpstatus(self):
-        """Returns the status of your ICP."""
-        self.__check_session()
-        response = self.__session.request("POST", self.__icp_status_url, headers=self.__headers_i_de)
-        if response.status_code != 200:
-            raise ResponseException
-        if not response.text:
-            raise NoResponseException
-        json_response = response.json()
-        if json_response["icp"] == "trueConectado":
-            return True
-        else:
-            return False
-
-    def contracts(self):
-        self.__check_session()
-        response = self.__session.request("GET", self.__contracts_url, headers=self.__headers_i_de)
-        if response.status_code != 200:
-            raise ResponseException
-        if not response.text:
-            raise NoResponseException
-        json_response = response.json()
-        if json_response["success"]:
-            return json_response["contratos"]
-
-    def contract(self):
-        self.__check_session()
-        response = self.__session.request("GET", self.__contract_detail_url, headers=self.__headers_i_de)
-        if response.status_code != 200:
-            raise ResponseException
-        if not response.text:
-            raise NoResponseException
-        return response.json()
-
-    def contractselect(self, id):
-        self.__check_session()
-        response = self.__session.request("GET", self.__contract_selection_url + id, headers=self.__headers_i_de)
-        if response.status_code != 200:
-            raise ResponseException
-        if not response.text:
-            raise NoResponseException
-        json_response = response.json()
-        if not json_response["success"]:
-            raise SelectContractException
+        return [total_plus_vat_20, total_plus_vat_20DHA, total_plus_vat_other]
 
     def get_PS_info(self):
         self.__check_session()
@@ -348,4 +353,55 @@ class Iber:
               modo_f = "1"
         else:
               modo_f = json_response["modoFacturacion"]
-        return "\n\n\t\tComercializadora: " + json_response["des_EPS_COM_VIG"] + "\n\t\tTarifa: " + json_response["cod_TARIFA_TF_Descripcion"] + "\n\t\tPotencia: " + json_response["val_POT_P1"] + "W\n\t\tMODO: " + modo_f + "\n\t\tTensión: " + json_response["val_TENSION_PTO_SUMIN"] + "V\n"
+        print("\n[INFORMACIÓN DEL CONTRATO]" + "\n\n\t\tComercializadora: " + json_response["des_EPS_COM_VIG"] + "\n\t\tDirección suministro: " + str(json_response["ps_DIREC"]) + "\n\t\tTarifa: " + json_response["cod_TARIFA_TF_Descripcion"] + "\n\t\tPotencia: " + json_response["val_POT_P1"] + "W\n\t\tModo: " + modo_f + "\n\t\tTensión: " + json_response["val_TENSION_PTO_SUMIN"] + "V\n")
+        return
+
+    def get_power_peaks_max_date(self):
+        self.__check_session()
+        response = self.__session.request("GET", self.__power_peak_dates_url, headers=self.__headers_i_de)
+        if response.status_code != 200:
+            raise ResponseException
+        if not response.text:
+            raise NoResponseException
+        json_response = response.json()
+        max_date = datetime.strptime(json_response['fecMax'], '%d-%m-%Y%H:%M:%S')
+        return max_date
+
+    def get_power_peaks(self,year):
+        self.__check_session()
+        max_date = self.get_power_peaks_max_date()
+        end_date = datetime.strptime("31-12-"+year+"23:59:59", '%d-%m-%Y%H:%M:%S')
+        if end_date > max_date:
+            end_date = max_date
+        response = self.__session.request("GET", self.__power_peak_url.format(end_date.strftime('%d-%m-%Y%H:%M:%S')), headers=self.__headers_i_de)
+        if response.status_code != 200:
+            raise ResponseException
+        if not response.text:
+            raise NoResponseException
+        json_response = response.json()
+        monthly_max_power = ["NO_DATA", "NO_DATA", "NO_DATA", "NO_DATA", "NO_DATA", "NO_DATA", "NO_DATA", "NO_DATA", "NO_DATA", "NO_DATA", "NO_DATA", "NO_DATA"]
+        print("[POTENCIAS MAXIMAS DEL AÑO " + end_date.strftime('%Y') + "]\n")
+        for i in range(len(json_response["potMaxMens"])):
+              monthly_max_power[int(json_response["potMaxMens"][i]["name"][3:5])-1] = str(json_response["potMaxMens"][i]["y"]) + "w"
+        for i in range(len(monthly_max_power)):
+              print("\t\t{:02d}".format(i+1) + "/"+end_date.strftime('%Y') + ": " + monthly_max_power[i])
+        print("\n")               
+        return
+
+    def get_anual_report(self,token):
+        self.get_PS_info()
+        self.get_power_peaks(self.today.strftime("%Y"))
+        self.get_power_peaks((self.today - relativedelta(years=1)).strftime("%Y"))
+        totals = [0,0,0]
+        for i in range(13,0,-1):
+            x = self.calculate_invoice_PVPC(token, i)
+            for z in range(0,3):
+                totals[z] = totals[z] + x[z]
+            min_cost = min(totals)
+        if totals.index(min_cost) == 0:
+            print("La tarifa PVPC 2.0A habría supuesto un ahorro de {0:.2f}€ frente a PVPC 2.0DHA y de {1:.2f}€ frente a la tarifa de mercado libre".format(totals[1]-totals[0],totals[2]-totals[0]))
+        elif totals.index(min_cost) == 1:
+            print("La tarifa PVPC 2.0DHA habría supuesto un ahorro de {0:.2f}€ frente a PVPC 2.0A y de {1:.2f}€ frente a la tarifa de mercado libre".format(totals[0]-totals[1],totals[2]-totals[1]))
+        elif totals.index(min_cost) == 2:
+            print("La tarifa de mercado libre habría supuesto un ahorro de {0:.2f}€ frente a PVPC 2.0A y de {1:.2f}€ frente a PVPV 2.0DHA".format(totals[0]-totals[3],totals[2]-totals[3]))
+        return
