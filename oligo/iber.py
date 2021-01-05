@@ -290,15 +290,15 @@ class Iber:
             average_price_energy20DHA_low = average_price_energy20DHA_low + self.roundup((p2[i]*energy20DHA[i])/sum(p2),6)
 
         power_cost = self.roundup(pot * ndays * 38.043426/(365+int(calendar.isleap(start_date.year))),2) + self.roundup(pot * ndays * 3.113/(365+int(calendar.isleap(start_date.year))),2)
-        energy_cost_20 = self.roundup(self.roundup(average_price_energy20*(self.roundup(sum(consumption_kwh),1)),2) + self.roundup(0.044027*(self.roundup(sum(consumption_kwh),1)),2),2)
-        energy_cost_20DHA = self.roundup(self.roundup(average_price_energy20DHA_peak*(self.roundup(sum(p1),1)),2) + self.roundup(0.062012*(self.roundup(sum(p1),1)),2) + self.roundup(average_price_energy20DHA_low*(self.roundup(sum(p2),1)),2) + self.roundup(0.002215*(self.roundup(sum(p2),1)),2),2)
+        energy_cost_20 = self.roundup(average_price_energy20*(self.roundup(sum(consumption_kwh),1)),2) + self.roundup(0.044027*(self.roundup(sum(consumption_kwh),1)),2)
+        energy_cost_20DHA = self.roundup(average_price_energy20DHA_peak*(self.roundup(sum(p1),1)),2) + self.roundup(0.062012*(self.roundup(sum(p1),1)),2) + self.roundup(average_price_energy20DHA_low*(self.roundup(sum(p2),1)),2) + self.roundup(0.002215*(self.roundup(sum(p2),1)),2)
         energy_and_power_cost_20 = energy_cost_20 + power_cost
         energy_and_power_cost_20DHA = energy_cost_20DHA + power_cost
         energy_tax_20 = self.roundup(energy_and_power_cost_20*0.0511269632,2)
         energy_tax_20DHA = self.roundup(energy_and_power_cost_20DHA*0.0511269632,2)
         equipment_cost = self.roundup(ndays * (0.81*12/(365+int(calendar.isleap(start_date.year)))),2)
-        total_20 =  self.roundup(energy_and_power_cost_20 + energy_tax_20 + equipment_cost,2)
-        total_20DHA =  self.roundup(energy_and_power_cost_20DHA + energy_tax_20DHA + equipment_cost,2)
+        total_20 =  energy_and_power_cost_20 + energy_tax_20 + equipment_cost
+        total_20DHA =  energy_and_power_cost_20DHA + energy_tax_20DHA + equipment_cost
         VAT_20 = self.roundup(total_20*0.21,2)
         VAT_20DHA = self.roundup(total_20DHA*0.21,2)
         total_plus_vat_20 = self.roundup(total_20 + VAT_20,2)
@@ -317,13 +317,13 @@ class Iber:
         name_other = "IBERDROLA 2.0DHA"
         power_cost_other = self.roundup(pot * (45/(365+int(calendar.isleap(start_date.year)))) * ndays,2)
         energy_cost_other = self.roundup(sum(p1) * 0.134579 + sum(p2) * 0.067519,2)
-        energy_and_power_cost_other = self.roundup(energy_cost_other + power_cost_other,2)
+        energy_and_power_cost_other = energy_cost_other + power_cost_other
         social_bonus_other = 0.02 * ndays
         energy_tax_other = self.roundup((energy_and_power_cost_other + social_bonus_other)*0.0511269632,2)
         equipment_cost_other = self.roundup(ndays *(0.81*12)/(365+int(calendar.isleap(start_date.year))),2)
-        total_other = self.roundup(energy_and_power_cost_other + energy_tax_other + equipment_cost_other + social_bonus_other,2)
+        total_other = energy_and_power_cost_other + energy_tax_other + equipment_cost_other + social_bonus_other
         VAT_other = self.roundup(total_other*0.21,2)
-        total_plus_vat_other = total_other + VAT_other
+        total_plus_vat_other = self.roundup(total_other + VAT_other,2)
 ############################################################################################
         if index == 0:
             print("[CONSUMO ACTUAL]")
