@@ -267,7 +267,7 @@ class Iber:
     def roundup(self, num, ndecimals):
         return float(round(Decimal(str(num)),ndecimals))
 
-    def calculate_invoice_PVPC(self, token, index):
+    def calculate_invoice_PVPC(self, token, index, simulate_pot):
         """Returns cost of same consumptions on pvpc . Index 0 means current consumption not yet invoiced. Bigger indexes returns costs of every already created invoice"""
         start_date, end_date, consumption_kwh = self.get_consumption(index)
         energy20, energy20DHA, peak_mask = self.get_ree_data(token,start_date,end_date)
@@ -278,7 +278,10 @@ class Iber:
             p2.append(int(not(peak_mask[i])) * consumption_kwh[i])
 
         ndays = (end_date - start_date).days+1
-        pot = (self.contract()['potMaxima'])/1000
+        if simulate_pot>0:
+            pot = simulate_pot
+        else:
+            pot = (self.contract()['potMaxima'])/1000
 
         average_price_energy20 = 0
         average_price_energy20DHA_peak = 0
@@ -328,16 +331,16 @@ class Iber:
         if index == 0:
             print("[CONSUMO ACTUAL]")
         elif index > 0:
-            print("[FACTURA]")
+            print("[FACTURA " + str(index) + "]")
         print("\nDESDE: "+start_date.strftime('%d-%m-%Y')+"\nHASTA: "+end_date.strftime('%d-%m-%Y')+"\nDIAS: "+str(ndays)+"\nPOTENCIA: "+str(pot)+"KW\nCONSUMO PUNTA P1: " + '{0:.2f}'.format(sum(p1))+ "kwh"+"\nCONSUMO VALLE P2: "+ '{0:.2f}'.format(sum(p2))+ "kwh\n")
-        print('{:<30} {:<30} {:<30}'.format("PVPC 2.0A price", "PVPC 2.0DHA price", name_other + " price"))
+        print('{:<30} {:<30} {:<30}'.format("PVPC 2.0A precio", "PVPC 2.0DHA precio", name_other + " precio"))
         print("-----------------------------------------------------------------------------------------")
-        print('{:<30} {:<30} {:<30}'.format("Power cost: "+'{0:.2f}'.format(power_cost)+"€", "Power cost: "+'{0:.2f}'.format(power_cost)+"€", "Power cost: "+'{0:.2f}'.format(power_cost_other)+"€"))
-        print('{:<30} {:<30} {:<30}'.format("Energy cost: "+'{0:.2f}'.format(energy_cost_20)+"€", "Energy cost: "+'{0:.2f}'.format(energy_cost_20DHA)+"€", "Energy cost: "+'{0:.2f}'.format(energy_cost_other)+"€"))
-        print('{:<30} {:<30} {:<30}'.format("Electric tax: "+'{0:.2f}'.format(energy_tax_20)+"€", "Electric tax: "+'{0:.2f}'.format(energy_tax_20DHA)+"€", "Electric tax: "+'{0:.2f}'.format(energy_tax_other)+"€"))
-        print('{:<30} {:<30} {:<30}'.format("Social bonus: "+'{0:.2f}'.format(0)+"€", "Social bonus: "+'{0:.2f}'.format(0)+"€", "Social bonus: "+'{0:.2f}'.format(social_bonus_other)+"€"))
-        print('{:<30} {:<30} {:<30}'.format("Measure equipments: "+'{0:.2f}'.format(equipment_cost)+"€", "Measure equipments: "+'{0:.2f}'.format(equipment_cost)+"€", "Measure equipments: "+'{0:.2f}'.format(equipment_cost_other)+"€"))
-        print('{:<30} {:<30} {:<30}'.format("VAT: "+'{0:.2f}'.format(VAT_20)+"€", "VAT: "+'{0:.2f}'.format(VAT_20DHA)+"€", "VAT: "+'{0:.2f}'.format(VAT_other)+"€"))
+        print('{:<30} {:<30} {:<30}'.format("Coste potencia: "+'{0:.2f}'.format(power_cost)+"€", "PCoste potencia: "+'{0:.2f}'.format(power_cost)+"€", "Coste potencia: "+'{0:.2f}'.format(power_cost_other)+"€"))
+        print('{:<30} {:<30} {:<30}'.format("Coste energía: "+'{0:.2f}'.format(energy_cost_20)+"€", "Coste energía: "+'{0:.2f}'.format(energy_cost_20DHA)+"€", "Coste energía: "+'{0:.2f}'.format(energy_cost_other)+"€"))
+        print('{:<30} {:<30} {:<30}'.format("Impuesto eléctrico: "+'{0:.2f}'.format(energy_tax_20)+"€", "Impuesto eléctrico: "+'{0:.2f}'.format(energy_tax_20DHA)+"€", "Impuesto eléctrico: "+'{0:.2f}'.format(energy_tax_other)+"€"))
+        print('{:<30} {:<30} {:<30}'.format("Bono social: "+'{0:.2f}'.format(0)+"€", "Bono social: "+'{0:.2f}'.format(0)+"€", "Bono social: "+'{0:.2f}'.format(social_bonus_other)+"€"))
+        print('{:<30} {:<30} {:<30}'.format("Equipos de medida: "+'{0:.2f}'.format(equipment_cost)+"€", "Equipos de medida: "+'{0:.2f}'.format(equipment_cost)+"€", "Equipos de medida: "+'{0:.2f}'.format(equipment_cost_other)+"€"))
+        print('{:<30} {:<30} {:<30}'.format("IVA: "+'{0:.2f}'.format(VAT_20)+"€", "IVA: "+'{0:.2f}'.format(VAT_20DHA)+"€", "IVA: "+'{0:.2f}'.format(VAT_other)+"€"))
         print('{:<30} {:<30} {:<30}'.format("TOTAL: "+'{0:.2f}'.format(total_plus_vat_20)+"€", "TOTAL: "+'{0:.2f}'.format(total_plus_vat_20DHA)+"€", "TOTAL: "+'{0:.2f}'.format(total_plus_vat_other)+"€\n\n"))
         return [total_plus_vat_20, total_plus_vat_20DHA, total_plus_vat_other]
 
@@ -386,19 +389,4 @@ class Iber:
         for i in range(len(monthly_max_power)):
               print("\t\t{:02d}".format(i+1) + "/"+end_date.strftime('%Y') + ": " + monthly_max_power[i])
         print("\n")               
-        return
-
-    def get_anual_report(self,token):
-        totals = [0,0,0]
-        for i in range(13,0,-1):
-            x = self.calculate_invoice_PVPC(token, i)
-            for z in range(0,3):
-                totals[z] = totals[z] + x[z]
-            min_cost = min(totals)
-        if totals.index(min_cost) == 0:
-            print("La tarifa PVPC 2.0A habría supuesto un ahorro de {0:.2f}€ frente a PVPC 2.0DHA y de {1:.2f}€ frente a la tarifa de mercado libre".format(totals[1]-totals[0],totals[2]-totals[0]))
-        elif totals.index(min_cost) == 1:
-            print("La tarifa PVPC 2.0DHA habría supuesto un ahorro de {0:.2f}€ frente a PVPC 2.0A y de {1:.2f}€ frente a la tarifa de mercado libre".format(totals[0]-totals[1],totals[2]-totals[1]))
-        elif totals.index(min_cost) == 2:
-            print("La tarifa de mercado libre habría supuesto un ahorro de {0:.2f}€ frente a PVPC 2.0A y de {1:.2f}€ frente a PVPV 2.0DHA".format(totals[0]-totals[3],totals[2]-totals[3]))
         return
