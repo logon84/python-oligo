@@ -2,8 +2,6 @@
 
 from datetime import datetime
 from oligo import Iber
-import os
-
 
 try:
     # Win32
