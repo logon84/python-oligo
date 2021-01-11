@@ -22,7 +22,7 @@ Donde 'ree_token' es el token solicitado a Red Electrica española para la consu
 1 para el calculo de la factura en una hipotética comercializadora PVPC con los consumos que sirvieron de base en la última factura de electricidad.  
 2 para el calculo de la factura en una hipotética comercializadora PVPC con los consumos que sirvieron de base en la penúltima factura de electricidad.  
 etc...  
-Con el parametro pot podemos simular los calculos con otra potencia diferente a la contratada. Para efectuar los cálculos con la potencia actualmente contrada establecer el parametro pot a 0.
+Con el parametro 'pot' podemos simular los cálculos con otra potencia diferente a la contratada. Para efectuar los cálculos con la potencia actualmente contrada establecer el parametro 'pot' a 0.
 
 #### Consultar consumo actual:
 
