@@ -310,18 +310,14 @@ class Iber:
 #        name_other = "SOM ENERGIA 2.0DHA"
 #        power_cost_other = self.roundup(pot * (38.043426/(365+int(calendar.isleap(start_date.year)))) * ndays,2)
 #        energy_cost_other = self.roundup(sum(p1) * 0.147 + sum(p2) * 0.075,2)
-#        energy_and_power_cost_other = energy_cost_other + power_cost_other
 #        social_bonus_other = 0.02 * ndays
-#        energy_tax_other = self.roundup((energy_and_power_cost_other + social_bonus_other)*0.0511269632,2)
-#        equipment_cost_other = self.roundup(ndays *(0.81*12)/(365+int(calendar.isleap(start_date.year))),2)
-#        total_other = energy_and_power_cost_other + energy_tax_other + equipment_cost_other + social_bonus_other
-#        VAT_other = self.roundup(total_other*0.21,2)
-#        total_plus_vat_other = total_other + VAT_other
+
         name_other = "IBERDROLA 2.0DHA"
         power_cost_other = self.roundup(pot * (45/(365+int(calendar.isleap(start_date.year)))) * ndays,2)
         energy_cost_other = self.roundup(sum(p1) * 0.134579 + sum(p2) * 0.067519,2)
-        energy_and_power_cost_other = energy_cost_other + power_cost_other
         social_bonus_other = 0.02 * ndays
+        
+        energy_and_power_cost_other = energy_cost_other + power_cost_other
         energy_tax_other = self.roundup((energy_and_power_cost_other + social_bonus_other)*0.0511269632,2)
         equipment_cost_other = self.roundup(ndays *(0.81*12)/(365+int(calendar.isleap(start_date.year))),2)
         total_other = energy_and_power_cost_other + energy_tax_other + equipment_cost_other + social_bonus_other
