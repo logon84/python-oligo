@@ -36,6 +36,7 @@ connection.get_power_peaks("2020")
 #x = connection.get_hourly_consumption(datetime.strptime("15-06-2020","%d-%m-%Y"),datetime.strptime("02-07-2020","%d-%m-%Y"))
 #x = connection.get_invoice_consumption(1)
 #x = connection.get_ree_data(ree_token,datetime.strptime("15-06-2020","%d-%m-%Y"),datetime.strptime("02-07-2020","%d-%m-%Y"))
+#print(x)
 
 simulate_pot = input("Introduza la potencia con la que desea simular el cálculo, o pulse ENTER si desea simular con la potencia actualmente contratada:")
 if len(simulate_pot) == 0:
