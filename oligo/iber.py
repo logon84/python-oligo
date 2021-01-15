@@ -7,6 +7,20 @@ from decimal import Decimal
 import aiohttp
 import asyncio
 
+try:
+    # Win32
+    from msvcrt import getch
+except ImportError:
+    # UNIX
+    def getch():
+        import sys, tty, termios
+        fd = sys.stdin.fileno()
+        old = termios.tcgetattr(fd)
+        try:
+            tty.setraw(fd)
+            return sys.stdin.read(1)
+        finally:
+            termios.tcsetattr(fd, termios.TCSADRAIN, old)
 
 class ResponseException(Exception):
     pass
@@ -307,16 +321,16 @@ class Iber:
         total_plus_vat_20 = self.roundup(total_20 + VAT_20,2)
         total_plus_vat_20DHA = self.roundup(total_20DHA + VAT_20DHA,2)
 #####################_____OTHER_COMPARISON (fill values)_____###############################
-#        name_other = "SOM ENERGIA 2.0DHA"
-#        power_cost_other = self.roundup(pot * (38.043426/(365+int(calendar.isleap(start_date.year)))) * ndays,2)
-#        energy_cost_other = self.roundup(sum(p1) * 0.147 + sum(p2) * 0.075,2)
+        name_other = "SOM ENERGIA 2.0DHA"
+        power_cost_other = self.roundup(pot * (38.043426/(365+int(calendar.isleap(start_date.year)))) * ndays,2)
+        energy_cost_other = self.roundup(sum(p1) * 0.147 + sum(p2) * 0.075,2)
+        social_bonus_other = 0.02 * ndays
+
+#        name_other = "IBERDROLA 2.0DHA"
+#        power_cost_other = self.roundup(pot * (45/(365+int(calendar.isleap(start_date.year)))) * ndays,2)
+#        energy_cost_other = self.roundup(sum(p1) * 0.134579 + sum(p2) * 0.067519,2)
 #        social_bonus_other = 0.02 * ndays
 
-        name_other = "IBERDROLA 2.0DHA"
-        power_cost_other = self.roundup(pot * (45/(365+int(calendar.isleap(start_date.year)))) * ndays,2)
-        energy_cost_other = self.roundup(sum(p1) * 0.134579 + sum(p2) * 0.067519,2)
-        social_bonus_other = 0.02 * ndays
-        
         energy_and_power_cost_other = energy_cost_other + power_cost_other
         energy_tax_other = self.roundup((energy_and_power_cost_other + social_bonus_other)*0.0511269632,2)
         equipment_cost_other = self.roundup(ndays *(0.81*12)/(365+int(calendar.isleap(start_date.year))),2)
@@ -331,7 +345,7 @@ class Iber:
         print("\nDESDE: "+start_date.strftime('%d-%m-%Y')+"\nHASTA: "+end_date.strftime('%d-%m-%Y')+"\nDIAS: "+str(ndays)+"\nPOTENCIA: "+str(pot)+"KW\nCONSUMO PUNTA P1: " + '{0:.2f}'.format(sum(p1))+ "kwh"+"\nCONSUMO VALLE P2: "+ '{0:.2f}'.format(sum(p2))+ "kwh\n")
         print('{:<30} {:<30} {:<30}'.format("PVPC 2.0A precio", "PVPC 2.0DHA precio", name_other + " precio"))
         print("-----------------------------------------------------------------------------------------")
-        print('{:<30} {:<30} {:<30}'.format("Coste potencia: "+'{0:.2f}'.format(power_cost)+"€", "PCoste potencia: "+'{0:.2f}'.format(power_cost)+"€", "Coste potencia: "+'{0:.2f}'.format(power_cost_other)+"€"))
+        print('{:<30} {:<30} {:<30}'.format("Coste potencia: "+'{0:.2f}'.format(power_cost)+"€", "Coste potencia: "+'{0:.2f}'.format(power_cost)+"€", "Coste potencia: "+'{0:.2f}'.format(power_cost_other)+"€"))
         print('{:<30} {:<30} {:<30}'.format("Coste energía: "+'{0:.2f}'.format(energy_cost_20)+"€", "Coste energía: "+'{0:.2f}'.format(energy_cost_20DHA)+"€", "Coste energía: "+'{0:.2f}'.format(energy_cost_other)+"€"))
         print('{:<30} {:<30} {:<30}'.format("Impuesto eléctrico: "+'{0:.2f}'.format(energy_tax_20)+"€", "Impuesto eléctrico: "+'{0:.2f}'.format(energy_tax_20DHA)+"€", "Impuesto eléctrico: "+'{0:.2f}'.format(energy_tax_other)+"€"))
         print('{:<30} {:<30} {:<30}'.format("Bono social: "+'{0:.2f}'.format(0)+"€", "Bono social: "+'{0:.2f}'.format(0)+"€", "Bono social: "+'{0:.2f}'.format(social_bonus_other)+"€"))
@@ -385,4 +399,29 @@ class Iber:
         for i in range(len(monthly_max_power)):
               print("\t\t{:02d}".format(i+1) + "/"+end_date.strftime('%Y') + ": " + monthly_max_power[i])
         print("\n")               
+        return
+
+    def continuous_calc(self,ree_token):
+        simulate_pot = input("Introduza la potencia con la que desea simular el cálculo, o pulse ENTER si desea simular con la potencia actualmente contratada:")
+        if len(simulate_pot) == 0:
+            simulate_pot = 0
+        else:
+            simulate_pot = float(simulate_pot)
+        totals = [0,0,0]
+        for i in range(0,36,1):
+            x = self.calculate_invoice_PVPC(ree_token,i,simulate_pot)
+            for z in range(0,3):
+                 totals[z] = totals[z] + x[z]
+            min_cost = min(totals)
+            if totals.index(min_cost) == 0:
+                 print("ACUMULADO: La tarifa PVPC 2.0A habría supuesto un ahorro de {0:.2f}€ frente a PVPC 2.0DHA y de {1:.2f}€ frente a la tarifa de mercado libre. [{2:.2f}€, {3:.2f}€, {4:.2f}€]".format(totals[1]-totals[0],totals[2]-totals[0], totals[0], totals[1], totals[2]))
+            elif totals.index(min_cost) == 1:
+                 print("ACUMULADO: La tarifa PVPC 2.0DHA habría supuesto un ahorro de {0:.2f}€ frente a PVPC 2.0A y de {1:.2f}€ frente a la tarifa de mercado libre. [{2:.2f}€, {3:.2f}€, {4:.2f}€]".format(totals[0]-totals[1],totals[2]-totals[1], totals[0], totals[1], totals[2]))
+            elif totals.index(min_cost) == 2:
+                 print("ACUMULADO: La tarifa de mercado libre habría supuesto un ahorro de {0:.2f}€ frente a PVPC 2.0A y de {1:.2f}€ frente a PVPV 2.0DHA. [{2:.2f}€, {3:.2f}€, {4:.2f}€]".format(totals[0]-totals[3],totals[2]-totals[3], totals[0], totals[1], totals[2]))
+            print("\n##########  PULSE CUALQUIER TECLA PARA CONTINUAR O ESPACIO PARA ABANDONAR  ###########", end="")
+            input_char = getch()
+            print("\n")
+            if input_char == " ":
+                 break
         return
