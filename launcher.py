@@ -17,6 +17,7 @@ connection.get_PS_info()
 connection.get_power_peaks("2020")
 connection.continuous_calc(ree_token)
 
+#x = connection.calculate_invoice_PVPC(ree_token,1,0)
 #x = connection.watthourmeter()
 #x = connection.get_invoice(5)
 #x = connection.get_hourly_consumption(datetime.strptime("15-06-2020","%d-%m-%Y"),datetime.strptime("02-07-2020","%d-%m-%Y"))
