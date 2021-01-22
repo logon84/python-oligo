@@ -422,6 +422,6 @@ class Iber:
             print("\n##########  PULSE CUALQUIER TECLA PARA CONTINUAR O ESPACIO PARA ABANDONAR  ###########", end="")
             input_char = getch()
             print("\n")
-            if input_char == " ":
+            if input_char == " " or input_char == " ".encode():
                  break
         return
