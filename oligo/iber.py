@@ -46,7 +46,7 @@ class Iber:
 
     __domain = "https://www.i-de.es"
     __login_url = __domain + "/consumidores/rest/loginNew/login"
-    __watthourmeter_url = __domain + "/consumidores/rest/escenarioNew/obtenerMedicionOnline/24"
+    __wattmeter_url = __domain + "/consumidores/rest/escenarioNew/obtenerMedicionOnline/24"
     __icp_status_url = __domain + "/consumidores/rest/rearmeICP/consultarEstado"
     __contracts_url = __domain + "/consumidores/rest/cto/listaCtos/"
     __contract_detail_url = __domain + "/consumidores/rest/detalleCto/detalle/"
@@ -99,16 +99,16 @@ class Iber:
         if not self.__session:
             raise SessionException("Session required, use login() method to obtain a session")
 
-    def watthourmeter(self):
+    def wattmeter(self):
         """Returns your current power consumption."""
         self.__check_session()
-        response = self.__session.request("GET", self.__watthourmeter_url, headers=self.__headers_i_de)
+        response = self.__session.request("GET", self.__wattmeter_url, headers=self.__headers_i_de)
         if response.status_code != 200:
             raise ResponseException
         if not response.text:
             raise NoResponseException
         json_response = response.json()
-        return json_response['valMagnitud']+"kw"
+        return str(json_response['valMagnitud']/1000)+"kw"
 
     def icpstatus(self):
         """Returns the status of your ICP."""
@@ -189,7 +189,6 @@ class Iber:
             raise ResponseException
         if not response.text:
             raise NoResponseException
-        counter = 0
         consumption_kwh = []
         csvdata = StringIO(response.text)
         next(csvdata)
@@ -200,11 +199,12 @@ class Iber:
             if not(current_date == last_date + relativedelta(hours=1)) and not(current_date == last_date) and not(current_date.month == 3 and current_date.day in range (25,32) and current_date.isoweekday() == 7 and current_date.hour == 3):
                  #NOT(current hour is consecutive to previous) and NOT(october hour change 0-1-2-2-3-4) and NOT(march hour change 0-1-3-4)
                  #value missing detected, fill with 0's
+                 counter = 0
                  while current_date > (last_date + relativedelta(hours=1)):
                        consumption_kwh.append(0)
                        last_date = last_date + relativedelta(hours=1)
                        counter = counter + 1
-                 print("--------------------ATTENTION: SOME VALUES ARE MISSING FOR THIS SIMULATION---------------------(" + str(counter) + ")")
+                 print("----------------ATENCION: FALTAN ALGUNOS VALORES DE CONSUMO EN ESTA SIMULACION-----------------(" + str(counter) + ")")
             consumption_kwh.append(int(line.split(";")[3])/1000)
             last_date = current_date
         return start_date, end_date, consumption_kwh
@@ -229,17 +229,13 @@ class Iber:
         self.__check_session()
         if index == 0: #get current cost
             last_invoice = self.get_invoice(0) #get last invoice
-            start_date = last_invoice['fechaHasta'] #get last day used in the last invoice to use next day as starting day for current cost
-            start_date = datetime.strptime(start_date, '%d/%m/%Y')
-            start_date = start_date + relativedelta(days=1)
+            start_date = datetime.strptime(last_invoice['fechaHasta'], '%d/%m/%Y') + relativedelta(days=1) #get last day used in the last invoice to use next day as starting day for current cost
             end_date = self.today
             start_date, end_date, consumption_kwh = self.get_hourly_consumption(start_date,end_date)
         else:
             invoice = self.get_invoice(index-1)
-            start_date = invoice['fechaDesde']
-            start_date = datetime.strptime(start_date, '%d/%m/%Y')
-            end_date = invoice['fechaHasta']
-            end_date = datetime.strptime(end_date, '%d/%m/%Y')
+            start_date = datetime.strptime(invoice['fechaDesde'], '%d/%m/%Y')
+            end_date = datetime.strptime(invoice['fechaHasta'], '%d/%m/%Y')
             start_date, end_date, consumption_kwh = self.get_hourly_consumption_by_invoice(invoice['numero'],start_date,end_date)
         return start_date, end_date, consumption_kwh
 
@@ -422,6 +418,6 @@ class Iber:
             print("\n##########  PULSE CUALQUIER TECLA PARA CONTINUAR O ESPACIO PARA ABANDONAR  ###########", end="")
             input_char = getch()
             print("\n")
-            if input_char == " " or input_char == " ".encode():
+            if input_char == " ".encode() or input_char == " ":
                  break
         return
