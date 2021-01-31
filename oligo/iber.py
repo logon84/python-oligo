@@ -218,26 +218,30 @@ class Iber:
         if not response.text:
             raise NoResponseException
         consumption_kwh = []
+        real_reads = []
         csvdata = StringIO(response.text)
         next(csvdata)
         for line in csvdata:
             consumption_kwh.append(float(line.split(";")[3].replace(',','.')))
-        return start_date, end_date, consumption_kwh
+            real_reads.append("R" in line.split(";")[4])
+        return start_date, end_date, consumption_kwh, real_reads
 
     def get_consumption(self,index):
         """Returns consumptions. Index 0 means current consumption not yet invoiced. Bigger indexes returns consumption by every already created invoice"""
         self.__check_session()
+        real_reads = []
         if index == 0: #get current cost
             last_invoice = self.get_invoice(0) #get last invoice
             start_date = datetime.strptime(last_invoice['fechaHasta'], '%d/%m/%Y') + relativedelta(days=1) #get last day used in the last invoice to use next day as starting day for current cost
             end_date = self.today
             start_date, end_date, consumption_kwh = self.get_hourly_consumption(start_date,end_date)
+            real_reads= [1 for i in range(len(consumption_kwh))]
         else:
             invoice = self.get_invoice(index-1)
             start_date = datetime.strptime(invoice['fechaDesde'], '%d/%m/%Y')
             end_date = datetime.strptime(invoice['fechaHasta'], '%d/%m/%Y')
-            start_date, end_date, consumption_kwh = self.get_hourly_consumption_by_invoice(invoice['numero'],start_date,end_date)
-        return start_date, end_date, consumption_kwh
+            start_date, end_date, consumption_kwh, real_reads = self.get_hourly_consumption_by_invoice(invoice['numero'],start_date,end_date)
+        return start_date, end_date, consumption_kwh, real_reads
 
     async def get(self,url,headers):
         """async request.GET to speedup REE data fetch"""
@@ -279,13 +283,15 @@ class Iber:
 
     def calculate_invoice_PVPC(self, token, index, simulate_pot):
         """Returns cost of same consumptions on pvpc . Index 0 means current consumption not yet invoiced. Bigger indexes returns costs of every already created invoice"""
-        start_date, end_date, consumption_kwh = self.get_consumption(index)
+        start_date, end_date, consumption_kwh, real_reads = self.get_consumption(index)
         energy20, energy20DHA, peak_mask = self.get_ree_data(token,start_date,end_date)
         p1 = []
         p2 = []
+        energy_real_read = 0
         for i in range(len(consumption_kwh)):
             p1.append(int(peak_mask[i]) * consumption_kwh[i])
             p2.append(int(not(peak_mask[i])) * consumption_kwh[i])
+            energy_real_read = energy_real_read + int(real_reads[i])*consumption_kwh[i]
 
         ndays = (end_date - start_date).days+1
         if simulate_pot>0:
@@ -338,16 +344,16 @@ class Iber:
             print("[CONSUMO ACTUAL]")
         elif index > 0:
             print("[FACTURA " + str(index) + "]")
-        print("\nDESDE: "+start_date.strftime('%d-%m-%Y')+"\nHASTA: "+end_date.strftime('%d-%m-%Y')+"\nDIAS: "+str(ndays)+"\nPOTENCIA: "+str(pot)+"KW\nCONSUMO PUNTA P1: " + '{0:.2f}'.format(sum(p1))+ "kwh"+"\nCONSUMO VALLE P2: "+ '{0:.2f}'.format(sum(p2))+ "kwh\n")
+        print("\nDESDE: "+start_date.strftime('%d-%m-%Y')+"\nHASTA: "+end_date.strftime('%d-%m-%Y')+"\nDIAS: "+str(ndays)+"\nPOTENCIA: "+str(pot)+"KW\nCONSUMO PUNTA P1: {0:.2f}kwh   || {1:.2f}% Lectura Real\nCONSUMO VALLE P2: {2:.2f}kwh  || {3:.2f}% Lectura Estimada\n".format(sum(p1),self.roundup(energy_real_read*100/sum(consumption_kwh),2),sum(p2),self.roundup((sum(consumption_kwh)-energy_real_read)*100/sum(consumption_kwh),2)))
         print('{:<30} {:<30} {:<30}'.format("PVPC 2.0A precio", "PVPC 2.0DHA precio", name_other + " precio"))
         print("-----------------------------------------------------------------------------------------")
-        print('{:<30} {:<30} {:<30}'.format("Coste potencia: "+'{0:.2f}'.format(power_cost)+"€", "Coste potencia: "+'{0:.2f}'.format(power_cost)+"€", "Coste potencia: "+'{0:.2f}'.format(power_cost_other)+"€"))
-        print('{:<30} {:<30} {:<30}'.format("Coste energía: "+'{0:.2f}'.format(energy_cost_20)+"€", "Coste energía: "+'{0:.2f}'.format(energy_cost_20DHA)+"€", "Coste energía: "+'{0:.2f}'.format(energy_cost_other)+"€"))
-        print('{:<30} {:<30} {:<30}'.format("Impuesto eléctrico: "+'{0:.2f}'.format(energy_tax_20)+"€", "Impuesto eléctrico: "+'{0:.2f}'.format(energy_tax_20DHA)+"€", "Impuesto eléctrico: "+'{0:.2f}'.format(energy_tax_other)+"€"))
-        print('{:<30} {:<30} {:<30}'.format("Bono social: "+'{0:.2f}'.format(0)+"€", "Bono social: "+'{0:.2f}'.format(0)+"€", "Bono social: "+'{0:.2f}'.format(social_bonus_other)+"€"))
-        print('{:<30} {:<30} {:<30}'.format("Equipos de medida: "+'{0:.2f}'.format(equipment_cost)+"€", "Equipos de medida: "+'{0:.2f}'.format(equipment_cost)+"€", "Equipos de medida: "+'{0:.2f}'.format(equipment_cost_other)+"€"))
-        print('{:<30} {:<30} {:<30}'.format("IVA: "+'{0:.2f}'.format(VAT_20)+"€", "IVA: "+'{0:.2f}'.format(VAT_20DHA)+"€", "IVA: "+'{0:.2f}'.format(VAT_other)+"€"))
-        print('{:<30} {:<30} {:<30}'.format("TOTAL: "+'{0:.2f}'.format(total_plus_vat_20)+"€", "TOTAL: "+'{0:.2f}'.format(total_plus_vat_20DHA)+"€", "TOTAL: "+'{0:.2f}'.format(total_plus_vat_other)+"€\n\n"))
+        print('{:<30} {:<30} {:<30}'.format("Coste potencia: {0:.2f}€".format(power_cost), "Coste potencia: {0:.2f}€".format(power_cost), "Coste potencia: {0:.2f}€".format(power_cost_other)))
+        print('{:<30} {:<30} {:<30}'.format("Coste energía: {0:.2f}€".format(energy_cost_20), "Coste energía: {0:.2f}€".format(energy_cost_20DHA), "Coste energía: {0:.2f}€".format(energy_cost_other)))
+        print('{:<30} {:<30} {:<30}'.format("Impuesto eléctrico: {0:.2f}€".format(energy_tax_20), "Impuesto eléctrico: {0:.2f}€".format(energy_tax_20DHA), "Impuesto eléctrico: {0:.2f}€".format(energy_tax_other)))
+        print('{:<30} {:<30} {:<30}'.format("Bono social: 0.00€", "Bono social: 0.00€", "Bono social: {0:.2f}€".format(social_bonus_other)))
+        print('{:<30} {:<30} {:<30}'.format("Equipos de medida: {0:.2f}€".format(equipment_cost), "Equipos de medida: {0:.2f}€".format(equipment_cost), "Equipos de medida: {0:.2f}€".format(equipment_cost_other)))
+        print('{:<30} {:<30} {:<30}'.format("IVA: {0:.2f}€".format(VAT_20), "IVA: {0:.2f}€".format(VAT_20DHA), "IVA: {0:.2f}€".format(VAT_other)))
+        print('{:<30} {:<30} {:<30}'.format("TOTAL: {0:.2f}€".format(total_plus_vat_20), "TOTAL: {0:.2f}€".format(total_plus_vat_20DHA), "TOTAL: {0:.2f}€\n\n".format(total_plus_vat_other)))
         return [total_plus_vat_20, total_plus_vat_20DHA, total_plus_vat_other]
 
     def get_PS_info(self):
