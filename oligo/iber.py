@@ -223,7 +223,7 @@ class Iber:
         next(csvdata)
         for line in csvdata:
             consumption_kwh.append(float(line.split(";")[3].replace(',','.')))
-            real_reads.append("R" in line.split(";")[4])
+            real_reads.append(int("R" in line.split(";")[4]))
         return start_date, end_date, consumption_kwh, real_reads
 
     def get_consumption(self,index):
@@ -291,7 +291,20 @@ class Iber:
         for i in range(len(consumption_kwh)):
             p1.append(int(peak_mask[i]) * consumption_kwh[i])
             p2.append(int(not(peak_mask[i])) * consumption_kwh[i])
-            energy_real_read = energy_real_read + int(real_reads[i])*consumption_kwh[i]
+            energy_real_read = energy_real_read + real_reads[i]*consumption_kwh[i]
+
+        PERC_REAL_KWH = self.roundup(energy_real_read*100/sum(consumption_kwh),2)
+        PERC_ESTIM_KWH = self.roundup((sum(consumption_kwh)-energy_real_read)*100/sum(consumption_kwh),2)
+        PERC_REAL_H = self.roundup(sum(real_reads)*100/len(real_reads),2)
+        PERC_ESTIM_H = self.roundup((len(real_reads)-sum(real_reads))*100/len(real_reads),2)
+        try:
+            AVERAGE_KWH_H_REAL = self.roundup(energy_real_read/sum(real_reads),2)
+        except:
+            AVERAGE_KWH_H_REAL = 0
+        try:
+            AVERAGE_KWH_H_ESTIM = self.roundup((sum(consumption_kwh)-energy_real_read)/(len(real_reads)-sum(real_reads)),2)
+        except:
+             AVERAGE_KWH_H_ESTIM = 0
 
         ndays = (end_date - start_date).days+1
         if simulate_pot>0:
@@ -344,7 +357,7 @@ class Iber:
             print("[CONSUMO ACTUAL]")
         elif index > 0:
             print("[FACTURA " + str(index) + "]")
-        print("\nDESDE: "+start_date.strftime('%d-%m-%Y')+"\nHASTA: "+end_date.strftime('%d-%m-%Y')+"\nDIAS: "+str(ndays)+"\nPOTENCIA: "+str(pot)+"KW\nCONSUMO PUNTA P1: {0:.2f}kwh   || {1:.2f}% Lectura Real\nCONSUMO VALLE P2: {2:.2f}kwh  || {3:.2f}% Lectura Estimada\n".format(sum(p1),self.roundup(energy_real_read*100/sum(consumption_kwh),2),sum(p2),self.roundup((sum(consumption_kwh)-energy_real_read)*100/sum(consumption_kwh),2)))
+        print("\nDESDE: "+start_date.strftime('%d-%m-%Y')+"\nHASTA: "+end_date.strftime('%d-%m-%Y')+"\nDIAS: "+str(ndays)+"\nPOTENCIA: "+str(pot)+"KW\nCONSUMO PUNTA P1: {0:.2f}kwh   || Lectura Real: {1:.2f}%/h  {2:.2f}%/kwh  {3:.2f}kwh/h\nCONSUMO VALLE P2: {4:.2f}kwh  || Lectura Estimada: {5:.2f}%/h  {6:.2f}%/kwh  {7:.2f}kwh/h \n".format(sum(p1),PERC_REAL_H,PERC_REAL_KWH,AVERAGE_KWH_H_REAL,sum(p2),PERC_ESTIM_H,PERC_ESTIM_KWH,AVERAGE_KWH_H_ESTIM))
         print('{:<30} {:<30} {:<30}'.format("PVPC 2.0A precio", "PVPC 2.0DHA precio", name_other + " precio"))
         print("-----------------------------------------------------------------------------------------")
         print('{:<30} {:<30} {:<30}'.format("Coste potencia: {0:.2f}€".format(power_cost), "Coste potencia: {0:.2f}€".format(power_cost), "Coste potencia: {0:.2f}€".format(power_cost_other)))
