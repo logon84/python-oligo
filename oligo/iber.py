@@ -281,10 +281,27 @@ class Iber:
     def roundup(self, num, ndecimals):
         return float(round(Decimal(str(num)),ndecimals))
 
+    def day_type_splitter(self, start_date, end_date):
+        days_365 = 0
+        days_366 = 0
+        if calendar.isleap(start_date.year) and calendar.isleap(end_date.year):
+            days_366 = (end_date - start_date).days+1
+        elif not calendar.isleap(start_date.year) and not calendar.isleap(end_date.year):
+            days_365 = (end_date - start_date).days+1
+        elif not calendar.isleap(start_date.year) and calendar.isleap(end_date.year):
+            days_365 = 366 - start_date.timetuple().tm_yday
+            days_366 = (end_date - start_date).days+1 - days_365
+        elif calendar.isleap(start_date.year) and not calendar.isleap(end_date.year):
+            days_366 = 367 - start_date.timetuple().tm_yday
+            days_365 = (end_date - start_date).days+1 - days_366
+        return days_365, days_366
+
     def calculate_invoice_PVPC(self, token, index, simulate_pot):
         """Returns cost of same consumptions on pvpc . Index 0 means current consumption not yet invoiced. Bigger indexes returns costs of every already created invoice"""
         start_date, end_date, consumption_kwh, real_reads = self.get_consumption(index)
         energy20, energy20DHA, peak_mask = self.get_ree_data(token,start_date,end_date)
+        days_365, days_366 = self.day_type_splitter(start_date,end_date)
+
         p1 = []
         p2 = []
         energy_real_read = 0
@@ -306,7 +323,6 @@ class Iber:
         except:
              AVERAGE_KWH_H_ESTIM = 0
 
-        ndays = (end_date - start_date).days+1
         if simulate_pot>0:
             pot = simulate_pot
         else:
@@ -321,14 +337,14 @@ class Iber:
             average_price_energy20DHA_peak = average_price_energy20DHA_peak + self.roundup((p1[i]*energy20DHA[i])/sum(p1),6)
             average_price_energy20DHA_low = average_price_energy20DHA_low + self.roundup((p2[i]*energy20DHA[i])/sum(p2),6)
 
-        power_cost = self.roundup(pot * ndays * 38.043426/(365+int(calendar.isleap(start_date.year))),2) + self.roundup(pot * ndays * 3.113/(365+int(calendar.isleap(start_date.year))),2)
+        power_cost = self.roundup(pot * days_365 * 38.043426/365, 2) + self.roundup(pot * days_365 * 3.113/365, 2) + self.roundup(pot * days_366 * 38.043426/366,2) + self.roundup(pot * days_366 * 3.113/366,2)
         energy_cost_20 = self.roundup(average_price_energy20*(self.roundup(sum(consumption_kwh),1)),2) + self.roundup(0.044027*(self.roundup(sum(consumption_kwh),1)),2)
         energy_cost_20DHA = self.roundup(average_price_energy20DHA_peak*(self.roundup(sum(p1),1)),2) + self.roundup(0.062012*(self.roundup(sum(p1),1)),2) + self.roundup(average_price_energy20DHA_low*(self.roundup(sum(p2),1)),2) + self.roundup(0.002215*(self.roundup(sum(p2),1)),2)
         energy_and_power_cost_20 = energy_cost_20 + power_cost
         energy_and_power_cost_20DHA = energy_cost_20DHA + power_cost
         energy_tax_20 = self.roundup(energy_and_power_cost_20*0.0511269632,2)
         energy_tax_20DHA = self.roundup(energy_and_power_cost_20DHA*0.0511269632,2)
-        equipment_cost = self.roundup(ndays * (0.81*12/(365+int(calendar.isleap(start_date.year)))),2)
+        equipment_cost = self.roundup(days_365 * (0.81*12/365) + days_366 * (0.81*12/366),2)
         total_20 =  energy_and_power_cost_20 + energy_tax_20 + equipment_cost
         total_20DHA =  energy_and_power_cost_20DHA + energy_tax_20DHA + equipment_cost
         VAT_20 = self.roundup(total_20*0.21,2)
@@ -337,18 +353,18 @@ class Iber:
         total_plus_vat_20DHA = self.roundup(total_20DHA + VAT_20DHA,2)
 #####################_____OTHER_COMPARISON (fill values)_____###############################
         name_other = "SOM ENERGIA 2.0DHA"
-        power_cost_other = self.roundup(pot * (38.043426/(365+int(calendar.isleap(start_date.year)))) * ndays,2)
+        power_cost_other = self.roundup(pot * days_365 * 38.043426/365, 2) + self.roundup(pot * days_366 * 38.043426/366, 2)
         energy_cost_other = self.roundup(sum(p1) * 0.147 + sum(p2) * 0.075,2)
-        social_bonus_other = 0.02 * ndays
+        social_bonus_other = 0.02 * (days_365 + days_366)
 
 #        name_other = "IBERDROLA 2.0DHA"
-#        power_cost_other = self.roundup(pot * (45/(365+int(calendar.isleap(start_date.year)))) * ndays,2)
+#        power_cost_other = self.roundup(pot * days_365 * 45/365, 2) + self.roundup(pot * days_366 * 45/366, 2)
 #        energy_cost_other = self.roundup(sum(p1) * 0.134579 + sum(p2) * 0.067519,2)
-#        social_bonus_other = 0.02 * ndays
+#        social_bonus_other = 0.02 * (days_365 + days_366)
 
         energy_and_power_cost_other = energy_cost_other + power_cost_other
         energy_tax_other = self.roundup((energy_and_power_cost_other + social_bonus_other)*0.0511269632,2)
-        equipment_cost_other = self.roundup(ndays *(0.81*12)/(365+int(calendar.isleap(start_date.year))),2)
+        equipment_cost_other = self.roundup(days_365 * (0.81*12/365) + days_366 * (0.81*12/366),2)
         total_other = energy_and_power_cost_other + energy_tax_other + equipment_cost_other + social_bonus_other
         VAT_other = self.roundup(total_other*0.21,2)
         total_plus_vat_other = self.roundup(total_other + VAT_other,2)
@@ -357,7 +373,7 @@ class Iber:
             print("[CONSUMO ACTUAL]")
         elif index > 0:
             print("[FACTURA " + str(index) + "]")
-        print("\nDESDE: "+start_date.strftime('%d-%m-%Y')+"\nHASTA: "+end_date.strftime('%d-%m-%Y')+"\nDIAS: "+str(ndays)+"\nPOTENCIA: "+str(pot)+"KW\nCONSUMO PUNTA P1: {0:.2f}kwh   || Lectura Real: {1:.2f}%/h  {2:.2f}%/kwh  {3:.2f}kwh/h\nCONSUMO VALLE P2: {4:.2f}kwh  || Lectura Estimada: {5:.2f}%/h  {6:.2f}%/kwh  {7:.2f}kwh/h \n".format(sum(p1),PERC_REAL_H,PERC_REAL_KWH,AVERAGE_KWH_H_REAL,sum(p2),PERC_ESTIM_H,PERC_ESTIM_KWH,AVERAGE_KWH_H_ESTIM))
+        print("\nDESDE: "+start_date.strftime('%d-%m-%Y')+"\nHASTA: "+end_date.strftime('%d-%m-%Y')+"\nDIAS: "+str(days_365 + days_366)+"\nPOTENCIA: "+str(pot)+"KW\nCONSUMO PUNTA P1: {0:.2f}kwh   || Lectura Real: {1:.2f}%/h  {2:.2f}%/kwh  {3:.2f}kwh/h\nCONSUMO VALLE P2: {4:.2f}kwh  || Lectura Estimada: {5:.2f}%/h  {6:.2f}%/kwh  {7:.2f}kwh/h \n".format(sum(p1),PERC_REAL_H,PERC_REAL_KWH,AVERAGE_KWH_H_REAL,sum(p2),PERC_ESTIM_H,PERC_ESTIM_KWH,AVERAGE_KWH_H_ESTIM))
         print('{:<30} {:<30} {:<30}'.format("PVPC 2.0A precio", "PVPC 2.0DHA precio", name_other + " precio"))
         print("-----------------------------------------------------------------------------------------")
         print('{:<30} {:<30} {:<30}'.format("Coste potencia: {0:.2f}€".format(power_cost), "Coste potencia: {0:.2f}€".format(power_cost), "Coste potencia: {0:.2f}€".format(power_cost_other)))
@@ -423,7 +439,7 @@ class Iber:
         else:
             simulate_pot = float(simulate_pot)
         totals = [0,0,0]
-        for i in range(0,36,1):
+        for i in range(0,27,1):
             x = self.calculate_invoice_PVPC(ree_token,i,simulate_pot)
             for z in range(0,3):
                  totals[z] = totals[z] + x[z]
