@@ -373,7 +373,7 @@ class Iber:
             print("[CONSUMO ACTUAL]")
         elif index > 0:
             print("[FACTURA " + str(index) + "]")
-        print("\nDESDE: "+start_date.strftime('%d-%m-%Y')+"\nHASTA: "+end_date.strftime('%d-%m-%Y')+"\nDIAS: "+str(days_365 + days_366)+"\nPOTENCIA: "+str(pot)+"KW\nCONSUMO PUNTA P1: {0:.2f}kwh   || Lectura Real: {1:.2f}%/h  {2:.2f}%/kwh  {3:.2f}kwh/h\nCONSUMO VALLE P2: {4:.2f}kwh  || Lectura Estimada: {5:.2f}%/h  {6:.2f}%/kwh  {7:.2f}kwh/h \n".format(sum(p1),PERC_REAL_H,PERC_REAL_KWH,AVERAGE_KWH_H_REAL,sum(p2),PERC_ESTIM_H,PERC_ESTIM_KWH,AVERAGE_KWH_H_ESTIM))
+        print("\nDESDE: {0}\nHASTA: {1}\nDIAS: {2}\nPOTENCIA: {3}KW\nCONSUMO PUNTA P1: {4:.2f}kwh   || Lectura Real: {5:.2f}%/h  {6:.2f}%/kwh  {7:.2f}kwh/h\nCONSUMO VALLE P2: {8:.2f}kwh  || Lectura Estimada: {9:.2f}%/h  {10:.2f}%/kwh  {11:.2f}kwh/h \n".format(start_date.strftime('%d-%m-%Y'),end_date.strftime('%d-%m-%Y'),str(days_365 + days_366),str(pot),sum(p1),PERC_REAL_H,PERC_REAL_KWH,AVERAGE_KWH_H_REAL,sum(p2),PERC_ESTIM_H,PERC_ESTIM_KWH,AVERAGE_KWH_H_ESTIM))
         print('{:<30} {:<30} {:<30}'.format("PVPC 2.0A precio", "PVPC 2.0DHA precio", name_other + " precio"))
         print("-----------------------------------------------------------------------------------------")
         print('{:<30} {:<30} {:<30}'.format("Coste potencia: {0:.2f}€".format(power_cost), "Coste potencia: {0:.2f}€".format(power_cost), "Coste potencia: {0:.2f}€".format(power_cost_other)))
