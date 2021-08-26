@@ -79,7 +79,7 @@ class Iber:
 	}
 	__hourtype_url = "https://api.esios.ree.es/indicators/1002?start_date=\"{0}\"T00:00:00&end_date=\"{1}\"T23:00:00"
 	day_reference_20td = datetime.strptime('01/06/2021', '%d/%m/%Y')
-	day_reference_vat10 = datetime.strptime('26/06/2021', '%d/%m/%Y')
+	day_reference_vat10 = datetime.strptime('01/06/2021', '%d/%m/%Y')
 	
 
 	def __init__(self):
