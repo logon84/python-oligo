@@ -6,6 +6,7 @@ import calendar
 from decimal import Decimal
 import aiohttp
 import asyncio
+import sys
 
 try:
 	# Win32
@@ -80,6 +81,8 @@ class Iber:
 	__hourtype_url = "https://api.esios.ree.es/indicators/1002?start_date=\"{0}\"T00:00:00&end_date=\"{1}\"T23:00:00"
 	day_reference_20td = datetime.strptime('01/06/2021', '%d/%m/%Y')
 	day_reference_vat10 = datetime.strptime('01/06/2021', '%d/%m/%Y')
+	day_reference_et05 = datetime.strptime('01/09/2021', '%d/%m/%Y')
+	day_reference_pot_reduct = datetime.strptime('15/09/2021', '%d/%m/%Y')
 	
 
 	def __init__(self):
@@ -350,6 +353,39 @@ class Iber:
 			days_366 = 367 - start_date.timetuple().tm_yday
 			days_365 = (end_date - start_date).days+1 - days_366
 		return days_365, days_366
+	
+	def tax_toll_calc(self, pot, xp1, xp2, xp3, days, year_of_data):
+		#pot_toll = [low, peak]
+		#pot_tax = [low, peak]
+		#energy_toll = [superlow, low, peak]
+		#energy_tax = [superlow, low, peak]
+		if year_of_data == 2021:
+			pot_toll = [0.961130, 23.469833]
+			pot_tax = [0.463229, 7.202827]
+			energy_toll = [0.000714, 0.020624, 0.027378]
+			energy_tax = [0.005287, 0.021148, 0.105740]
+			year_days = 365
+		elif year_of_data == 20212:
+			pot_toll = [0.961130, 23.469833]
+			pot_tax = [0.018107, 0.281544]
+			energy_toll = [0.000714, 0.020624, 0.027378]
+			energy_tax = [0.000207, 0.000827, 0.004133]
+			year_days = 365
+		elif year_of_data == 2022:
+			pot_toll = [0.938890, 22.988256]
+			pot_tax = [0.319666, 4.970533]
+			energy_toll = [0.000703, 0.019146, 0.027787]
+			energy_tax = [0.003648, 0.014594, 0.072969]
+			year_days = 365
+		else:
+			print("ERROR - Unknown year for tax & toll calculation")
+			sys.exit()
+
+		power_toll_tax_cost_peak = self.roundup(pot * days * pot_toll[1]/year_days, 2) + self.roundup(pot * days * pot_tax[1]/year_days, 2)
+		power_toll_tax_cost_low = self.roundup(pot * days * pot_toll[0]/year_days, 2) + self.roundup(pot * days * pot_tax[0]/year_days, 2)
+		energy_toll_tax_cost =  self.roundup(self.roundup(self.roundup(sum(xp1),2)*energy_toll[2],2) + self.roundup(self.roundup(sum(xp1),2)*energy_tax[2],2) + self.roundup(self.roundup(sum(xp2),2)*energy_toll[1],2) + self.roundup(self.roundup(sum(xp2),2)*energy_tax[1],2) + self.roundup(self.roundup(sum(xp3),2)*energy_toll[0],2) + self.roundup(self.roundup(sum(xp3),2)*energy_tax[0],2),2)
+		return power_toll_tax_cost_peak, power_toll_tax_cost_low, energy_toll_tax_cost
+
 					
 	def calculate_invoice_PVPC(self, token, index, simulate_pot):
 		"""Returns cost of same consumptions on pvpc . Index 0 means current consumption not yet invoiced. Bigger indexes returns costs of every already created invoice"""
@@ -403,19 +439,53 @@ class Iber:
 		if start_date >= self.day_reference_20td:
 		#2.0TD CASE
 			vat_value = 0.21
+			et_value = 0.0511269632
 			if end_date > self.day_reference_vat10:
 				vat_value = 0.1
+			if end_date > self.day_reference_et05:
+				et_value = 0.005
 			power_margin = self.roundup(pot * days_365 * 3.113/365, 2) + self.roundup(pot * days_366 * 3.113/366, 2)
-			power_cost_peak = self.roundup(pot * days_365 * 30.67266/365, 2) + self.roundup(pot * days_366 * 30.67266/366, 2)
-			power_cost_low = self.roundup(pot * days_365 * 1.4243591/365, 2) + self.roundup(pot * days_366 * 1.4243591/366, 2)
-			power_cost20TD = power_margin + power_cost_peak + power_cost_low
-			toll_cost =  self.roundup(self.roundup(0.133118*(self.roundup(sum(p1),2)),2) + self.roundup(0.041772*(self.roundup(sum(p2),2)),2) + self.roundup(0.006001*(self.roundup(sum(p3),2)),2),2)
+
+			if start_date < self.day_reference_pot_reduct:		
+				if end_date < self.day_reference_pot_reduct:
+					power_toll_tax_cost_peak, power_toll_tax_cost_low, energy_toll_tax_cost = self.tax_toll_calc(pot, p1, p2, p3, (end_date - start_date).days + 1, 2021)
+				else:
+					days_1 = (self.day_reference_pot_reduct - start_date).days
+					days_2 = (end_date - self.day_reference_pot_reduct).days + 1
+					
+					power_toll_tax_cost_peak_1, power_toll_tax_cost_low_1, energy_toll_tax_cost_1 = self.tax_toll_calc(pot, p1[:24*days_1], p2[:24*days_1], p3[:24*days_1], days_1, 2021)
+					power_toll_tax_cost_peak_2, power_toll_tax_cost_low_2, energy_toll_tax_cost_2 = self.tax_toll_calc(pot, p1[24*days_1:], p2[24*days_1:], p3[24*days_1:], days_2, 20212)
+					power_toll_tax_cost_peak = power_toll_tax_cost_peak_1 + power_toll_tax_cost_peak_2
+					power_toll_tax_cost_low = power_toll_tax_cost_low_1 + power_toll_tax_cost_low_2
+					energy_toll_tax_cost = energy_toll_tax_cost_1 + energy_toll_tax_cost_2
+
+			else: 
+				if start_date.year == end_date.year:
+					if end_date.year == 2021:
+						power_toll_tax_cost_peak, power_toll_tax_cost_low, energy_toll_tax_cost = self.tax_toll_calc(pot, p1, p2, p3, (end_date - start_date).days + 1, 20212)
+					else:
+						days_1 = (end_date - start_date).days + 1
+						power_toll_tax_cost_peak, power_toll_tax_cost_low, energy_toll_tax_cost = self.tax_toll_calc(pot, p1, p2, p3, (end_date - start_date).days + 1, end_date.year)
+				else:
+					days_1 = (datetime.strptime('31/12/' + str(start_date.year), '%d/%m/%Y') - start_date).days + 1
+					days_2 = (end_date - datetime.strptime('01/01/' + str(end_date.year), '%d/%m/%Y')).days + 1
+
+					if start_date.year == 2021:
+						power_toll_tax_cost_peak_1, power_toll_tax_cost_low_1, energy_toll_tax_cost_1 = self.tax_toll_calc(pot, p1[:24*days_1], p2[:24*days_1], p3[:24*days_1], days_1, 20212)
+					else:
+						power_toll_tax_cost_peak_1, power_toll_tax_cost_low_1, energy_toll_tax_cost_1 = self.tax_toll_calc(pot, p1[:24*days_1], p2[:24*days_1], p3[:24*days_1], days_1, start_date.year)
+					power_toll_tax_cost_peak_2, power_toll_tax_cost_low_2, energy_toll_tax_cost_2 = self.tax_toll_calc(pot, p1[24*days_1:], p2[24*days_1:], p3[24*days_1:], days_2, end_date.year)
+					power_toll_tax_cost_peak = power_toll_tax_cost_peak_1 + power_toll_tax_cost_peak_2
+					power_toll_tax_cost_low = power_toll_tax_cost_low_1 + power_toll_tax_cost_low_2
+					energy_toll_tax_cost = energy_toll_tax_cost_1 + energy_toll_tax_cost_2
+			
+			power_cost20TD = power_margin + power_toll_tax_cost_peak + power_toll_tax_cost_low
 			energy_cost_20TD_peak = self.roundup(avg_price_energy_var_price_peak*(self.roundup(sum(p1),2)),2)
 			energy_cost_20TD_low = self.roundup(avg_price_energy_var_price_low*(self.roundup(sum(p2),2)),2)
 			energy_cost_20TD_superlow = self.roundup(avg_price_energy_var_price_superlow*(self.roundup(sum(p3),2)),2)
-			energy_cost_20TD = toll_cost + energy_cost_20TD_peak + energy_cost_20TD_low + energy_cost_20TD_superlow
+			energy_cost_20TD = energy_toll_tax_cost + energy_cost_20TD_peak + energy_cost_20TD_low + energy_cost_20TD_superlow
 			energy_and_power_cost_20TD = energy_cost_20TD + power_cost20TD
-			energy_tax_20TD = self.roundup(energy_and_power_cost_20TD*0.0511269632,2)
+			energy_tax_20TD = self.roundup(energy_and_power_cost_20TD*et_value,2)
 			equipment_cost = self.roundup(days_365 * (0.81*12/365) + days_366 * (0.81*12/366),2)
 			total_20TD =  energy_and_power_cost_20TD + energy_tax_20TD + equipment_cost
 			VAT_20TD = self.roundup(total_20TD*vat_value,2)
@@ -434,14 +504,14 @@ class Iber:
 			social_bonus_other2 = 0.02 * (days_365 + days_366)
 
 			energy_and_power_cost_other = energy_cost_other + power_cost_other
-			energy_tax_other = self.roundup((energy_and_power_cost_other + social_bonus_other)*0.0511269632,2)
+			energy_tax_other = self.roundup((energy_and_power_cost_other + social_bonus_other)*et_value,2)
 			equipment_cost_other = self.roundup(days_365 * (0.81*12/365) + days_366 * (0.81*12/366),2)
 			total_other = energy_and_power_cost_other + energy_tax_other + equipment_cost_other + social_bonus_other
 			VAT_other = self.roundup(total_other*vat_value,2)
 			total_plus_vat_other = self.roundup(total_other + VAT_other,2)
 			
 			energy_and_power_cost_other2 = energy_cost_other2 + power_cost_other2
-			energy_tax_other2 = self.roundup((energy_and_power_cost_other2 + social_bonus_other2)*0.0511269632,2)
+			energy_tax_other2 = self.roundup((energy_and_power_cost_other2 + social_bonus_other2)*et_value,2)
 			equipment_cost_other2 = self.roundup(days_365 * (0.81*12/365) + days_366 * (0.81*12/366),2)
 			total_other2 = energy_and_power_cost_other2 + energy_tax_other2 + equipment_cost_other2 + social_bonus_other2
 			VAT_other2 = self.roundup(total_other2*vat_value,2)
@@ -615,22 +685,25 @@ class Iber:
 		else:
 			simulate_pot = float(simulate_pot)
 		totals = [0,0,0]
-		for i in range(0,27,1):
-			header, c1, c2, c3 = self.calculate_invoice_PVPC(ree_token,i,simulate_pot)
-			self.print_comparison(header, c1, c2, c3)
-			totals[0] = totals[0] + c1[7]
-			totals[1] = totals[1] + c2[7]
-			totals[2] = totals[2] + c3[7]
-			min_cost = min(totals)
-			if totals.index(min_cost) == 0:
-				 print("ACUMULADO: La tarifa PVPC 2.0A habría supuesto un ahorro de {0:.2f}€ frente a PVPC 2.0DHA y de {1:.2f}€ frente a la tarifa de mercado libre. [{2:.2f}€, {3:.2f}€, {4:.2f}€]".format(totals[1]-totals[0],totals[2]-totals[0], totals[0], totals[1], totals[2]))
-			elif totals.index(min_cost) == 1:
-				 print("ACUMULADO: La tarifa PVPC 2.0DHA habría supuesto un ahorro de {0:.2f}€ frente a PVPC 2.0A y de {1:.2f}€ frente a la tarifa de mercado libre. [{2:.2f}€, {3:.2f}€, {4:.2f}€]".format(totals[0]-totals[1],totals[2]-totals[1], totals[0], totals[1], totals[2]))
-			elif totals.index(min_cost) == 2:
-				 print("ACUMULADO: La tarifa de mercado libre habría supuesto un ahorro de {0:.2f}€ frente a PVPC 2.0A y de {1:.2f}€ frente a PVPV 2.0DHA. [{2:.2f}€, {3:.2f}€, {4:.2f}€]".format(totals[0]-totals[2],totals[1]-totals[2], totals[0], totals[1], totals[2]))
-			print("\n##########  PULSE CUALQUIER TECLA PARA CONTINUAR O ESPACIO PARA ABANDONAR  ###########", end="")
-			input_char = getch()
-			print("\n")
-			if input_char == " ".encode() or input_char == " ":
-				 break
+		for i in range(1,27,1):
+			try:
+				header, c1, c2, c3 = self.calculate_invoice_PVPC(ree_token,i,simulate_pot)
+				self.print_comparison(header, c1, c2, c3)
+				totals[0] = totals[0] + c1[7]
+				totals[1] = totals[1] + c2[7]
+				totals[2] = totals[2] + c3[7]
+				min_cost = min(totals)
+				if totals.index(min_cost) == 0:
+					print("ACUMULADO: La tarifa PVPC 2.0A habría supuesto un ahorro de {0:.2f}€ frente a PVPC 2.0DHA y de {1:.2f}€ frente a la tarifa de mercado libre. [{2:.2f}€, {3:.2f}€, {4:.2f}€]".format(totals[1]-totals[0],totals[2]-totals[0], totals[0], totals[1], totals[2]))
+				elif totals.index(min_cost) == 1:
+					print("ACUMULADO: La tarifa PVPC 2.0DHA habría supuesto un ahorro de {0:.2f}€ frente a PVPC 2.0A y de {1:.2f}€ frente a la tarifa de mercado libre. [{2:.2f}€, {3:.2f}€, {4:.2f}€]".format(totals[0]-totals[1],totals[2]-totals[1], totals[0], totals[1], totals[2]))
+				elif totals.index(min_cost) == 2:
+					print("ACUMULADO: La tarifa de mercado libre habría supuesto un ahorro de {0:.2f}€ frente a PVPC 2.0A y de {1:.2f}€ frente a PVPV 2.0DHA. [{2:.2f}€, {3:.2f}€, {4:.2f}€]".format(totals[0]-totals[2],totals[1]-totals[2], totals[0], totals[1], totals[2]))
+				print("\n##########  PULSE CUALQUIER TECLA PARA CONTINUAR O ESPACIO PARA ABANDONAR  ###########", end="")
+				input_char = getch()
+				print("\n")
+				if input_char == " ".encode() or input_char == " ":
+					break
+			except:
+				continue
 		return
