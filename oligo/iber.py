@@ -272,7 +272,7 @@ class Iber:
 		IDenergy20A = '10254'
 		IDenergy20DHA = '10255'
 		IDenergy20TD = '10393'
-		ID20TDzone = 'Península'
+		ID20TDzone = 'Peninsula'
 
 		energy20A = []
 		energy20DHA = []
