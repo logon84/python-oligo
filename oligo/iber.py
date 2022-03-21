@@ -247,7 +247,6 @@ class Iber:
 				index = 1
 			else:
 				start_date, end_date, consumption_kwh = self.get_hourly_consumption(start_date,end_date)
-				print(consumption_kwh)
 				real_reads= [1 for i in range(len(consumption_kwh))]
 				type_consumptions = str(index)
 		if index > 0:
@@ -450,7 +449,6 @@ class Iber:
 			if start_date < self.day_reference_pot_reduct:		
 				if end_date < self.day_reference_pot_reduct:
 					power_toll_tax_cost_peak, power_toll_tax_cost_low, energy_toll_tax_cost = self.tax_toll_calc(pot, p1, p2, p3, (end_date - start_date).days + 1, 2021)
-					print(str(self.tax_toll_calc(pot, p1, p2, p3, (end_date - start_date).days + 1, 2021)))
 				else:
 					days_1 = (self.day_reference_pot_reduct - start_date).days
 					days_2 = (end_date - self.day_reference_pot_reduct).days + 1
@@ -460,12 +458,10 @@ class Iber:
 					power_toll_tax_cost_peak = power_toll_tax_cost_peak_1 + power_toll_tax_cost_peak_2
 					power_toll_tax_cost_low = power_toll_tax_cost_low_1 + power_toll_tax_cost_low_2
 					energy_toll_tax_cost = energy_toll_tax_cost_1 + energy_toll_tax_cost_2
-					print(str(self.tax_toll_calc(pot, p1, p2, p3, (end_date - start_date).days + 1, 2021)))
 
 			else: 
 				if start_date.year == end_date.year:
 					if end_date.year == 2021:
-						print(str(self.tax_toll_calc(pot, p1, p2, p3, (end_date - start_date).days + 1, 2021)))
 						power_toll_tax_cost_peak, power_toll_tax_cost_low, energy_toll_tax_cost = self.tax_toll_calc(pot, p1, p2, p3, (end_date - start_date).days + 1, 20212)
 					else:
 						days_1 = (end_date - start_date).days + 1
@@ -475,11 +471,9 @@ class Iber:
 					days_2 = (end_date - datetime.strptime('01/01/' + str(end_date.year), '%d/%m/%Y')).days + 1
 
 					if start_date.year == 2021:
-						print(str(self.tax_toll_calc(pot, p1, p2, p3, (end_date - start_date).days + 1, 2021)))
 						power_toll_tax_cost_peak_1, power_toll_tax_cost_low_1, energy_toll_tax_cost_1 = self.tax_toll_calc(pot, p1[:24*days_1], p2[:24*days_1], p3[:24*days_1], days_1, 20212)
 						
 					else:
-						print(str(self.tax_toll_calc(pot, p1, p2, p3, (end_date - start_date).days + 1, 2021)))
 						power_toll_tax_cost_peak_1, power_toll_tax_cost_low_1, energy_toll_tax_cost_1 = self.tax_toll_calc(pot, p1[:24*days_1], p2[:24*days_1], p3[:24*days_1], days_1, start_date.year)
 					power_toll_tax_cost_peak_2, power_toll_tax_cost_low_2, energy_toll_tax_cost_2 = self.tax_toll_calc(pot, p1[24*days_1:], p2[24*days_1:], p3[24*days_1:], days_2, end_date.year)
 					power_toll_tax_cost_peak = power_toll_tax_cost_peak_1 + power_toll_tax_cost_peak_2
