@@ -202,7 +202,7 @@ class Iber:
 		last_date = start_date
 		for line in csvdata:
 			#spaguetti.run
-			current_date = datetime.strptime(line.split(";")[1], '%Y/%m/%d %H:%M')
+			current_date = datetime.strptime(line.split(";")[1] + " " + str(int(line.split(";")[2]) - 1) + ":00", '%d/%m/%Y %H:%M')
 			if not(current_date == last_date + relativedelta(hours=1)) and not(current_date == last_date) and not(current_date.month == 3 and current_date.day in range (25,32) and current_date.isoweekday() == 7 and current_date.hour == 3):
 				 #NOT(current hour is consecutive to previous) and NOT(october hour change 0-1-2-2-3-4) and NOT(march hour change 0-1-3-4)
 				 #value missing detected, fill with 0's
@@ -212,7 +212,7 @@ class Iber:
 					   last_date = last_date + relativedelta(hours=1)
 					   counter = counter + 1
 				 print("----------------ATENCION: FALTAN ALGUNOS VALORES DE CONSUMO EN ESTA SIMULACION-----------------(" + str(counter) + ")")
-			consumption_kwh.append(int(line.split(";")[3])/1000)
+			consumption_kwh.append(float(line.split(";")[3].replace(',','.')))
 			last_date = current_date
 		return start_date, end_date, consumption_kwh
 
@@ -247,6 +247,7 @@ class Iber:
 				index = 1
 			else:
 				start_date, end_date, consumption_kwh = self.get_hourly_consumption(start_date,end_date)
+				print(consumption_kwh)
 				real_reads= [1 for i in range(len(consumption_kwh))]
 				type_consumptions = str(index)
 		if index > 0:
@@ -272,7 +273,7 @@ class Iber:
 		IDenergy20A = '10254'
 		IDenergy20DHA = '10255'
 		IDenergy20TD = '10393'
-		ID20TDzone = 'Peninsula'
+		ID20TDzone = 'Península'
 
 		energy20A = []
 		energy20DHA = []
@@ -397,13 +398,13 @@ class Iber:
 		p2 = []
 		p3 = []
 		energy_real_read = 0
-
+		
 		for i in range(len(consumption_kwh)):
 			p1.append(int(period_mask[i] == 1) * consumption_kwh[i])
 			p2.append(int(period_mask[i] == 2) * consumption_kwh[i])
 			p3.append(int(period_mask[i] == 3) * consumption_kwh[i])
 			energy_real_read = energy_real_read + real_reads[i]*consumption_kwh[i]
-
+		
 		PERC_REAL_KWH = self.roundup(energy_real_read*100/sum(consumption_kwh),2)
 		PERC_ESTIM_KWH = self.roundup((sum(consumption_kwh)-energy_real_read)*100/sum(consumption_kwh),2)
 		PERC_REAL_H = self.roundup(sum(real_reads)*100/len(real_reads),2)
@@ -435,7 +436,7 @@ class Iber:
 				avg_price_energy_var_price_superlow = avg_price_energy_var_price_superlow + self.roundup((p3[i]*energy_var_price[i])/sum(p3),6)
 			except:
 				avg_price_energy_var_price_superlow = 0
-
+				
 		if start_date >= self.day_reference_20td:
 		#2.0TD CASE
 			vat_value = 0.21
@@ -449,6 +450,7 @@ class Iber:
 			if start_date < self.day_reference_pot_reduct:		
 				if end_date < self.day_reference_pot_reduct:
 					power_toll_tax_cost_peak, power_toll_tax_cost_low, energy_toll_tax_cost = self.tax_toll_calc(pot, p1, p2, p3, (end_date - start_date).days + 1, 2021)
+					print(str(self.tax_toll_calc(pot, p1, p2, p3, (end_date - start_date).days + 1, 2021)))
 				else:
 					days_1 = (self.day_reference_pot_reduct - start_date).days
 					days_2 = (end_date - self.day_reference_pot_reduct).days + 1
@@ -458,10 +460,12 @@ class Iber:
 					power_toll_tax_cost_peak = power_toll_tax_cost_peak_1 + power_toll_tax_cost_peak_2
 					power_toll_tax_cost_low = power_toll_tax_cost_low_1 + power_toll_tax_cost_low_2
 					energy_toll_tax_cost = energy_toll_tax_cost_1 + energy_toll_tax_cost_2
+					print(str(self.tax_toll_calc(pot, p1, p2, p3, (end_date - start_date).days + 1, 2021)))
 
 			else: 
 				if start_date.year == end_date.year:
 					if end_date.year == 2021:
+						print(str(self.tax_toll_calc(pot, p1, p2, p3, (end_date - start_date).days + 1, 2021)))
 						power_toll_tax_cost_peak, power_toll_tax_cost_low, energy_toll_tax_cost = self.tax_toll_calc(pot, p1, p2, p3, (end_date - start_date).days + 1, 20212)
 					else:
 						days_1 = (end_date - start_date).days + 1
@@ -471,8 +475,11 @@ class Iber:
 					days_2 = (end_date - datetime.strptime('01/01/' + str(end_date.year), '%d/%m/%Y')).days + 1
 
 					if start_date.year == 2021:
+						print(str(self.tax_toll_calc(pot, p1, p2, p3, (end_date - start_date).days + 1, 2021)))
 						power_toll_tax_cost_peak_1, power_toll_tax_cost_low_1, energy_toll_tax_cost_1 = self.tax_toll_calc(pot, p1[:24*days_1], p2[:24*days_1], p3[:24*days_1], days_1, 20212)
+						
 					else:
+						print(str(self.tax_toll_calc(pot, p1, p2, p3, (end_date - start_date).days + 1, 2021)))
 						power_toll_tax_cost_peak_1, power_toll_tax_cost_low_1, energy_toll_tax_cost_1 = self.tax_toll_calc(pot, p1[:24*days_1], p2[:24*days_1], p3[:24*days_1], days_1, start_date.year)
 					power_toll_tax_cost_peak_2, power_toll_tax_cost_low_2, energy_toll_tax_cost_2 = self.tax_toll_calc(pot, p1[24*days_1:], p2[24*days_1:], p3[24*days_1:], days_2, end_date.year)
 					power_toll_tax_cost_peak = power_toll_tax_cost_peak_1 + power_toll_tax_cost_peak_2
@@ -498,9 +505,9 @@ class Iber:
 			energy_cost_other = self.roundup(sum(p1) * 0.145150 + sum(p2) * 0.145150 + sum(p3) * 0.145150,2)
 			social_bonus_other = 0.02 * (days_365 + days_366)
 
-			name_other2 = "SOM ENERGIA 2.0DHA"
-			power_cost_other2 = self.roundup(pot * days_365 * 34.65/365, 2) + self.roundup(pot * days_366 * 34.65/366, 2)
-			energy_cost_other2 = self.roundup(sum(p1) * 0.224 + sum(p2) * 0.127 + sum(p3) * 0.084 ,2)
+			name_other2 = "NATURGY TARIFA COMPROMISO"
+			power_cost_other2 = self.roundup(pot * days_365 * 37.27/365, 2) + self.roundup(pot * days_366 * 37.27/366, 2)
+			energy_cost_other2 = self.roundup(sum(consumption_kwh) * 0.145151 ,2)
 			social_bonus_other2 = 0.02 * (days_365 + days_366)
 
 			energy_and_power_cost_other = energy_cost_other + power_cost_other
@@ -685,7 +692,7 @@ class Iber:
 		else:
 			simulate_pot = float(simulate_pot)
 		totals = [0,0,0]
-		for i in range(1,27,1):
+		for i in range(0,27,1):
 			try:
 				header, c1, c2, c3 = self.calculate_invoice_PVPC(ree_token,i,simulate_pot)
 				self.print_comparison(header, c1, c2, c3)
