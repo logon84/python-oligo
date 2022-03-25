@@ -79,6 +79,7 @@ class Iber:
 		'Cookie': ""
 	}
 	__hourtype_url = "https://api.esios.ree.es/indicators/1002?start_date=\"{0}\"T00:00:00&end_date=\"{1}\"T23:00:00"
+	delay = 0
 	day_reference_20td = datetime.strptime('01/06/2021', '%d/%m/%Y')
 	day_reference_vat10 = datetime.strptime('01/06/2021', '%d/%m/%Y')
 	day_reference_et05 = datetime.strptime('01/09/2021', '%d/%m/%Y')
@@ -240,16 +241,16 @@ class Iber:
 		if index == 0: #get current cost
 			last_invoice = self.get_invoice(0) #get last invoice
 			start_date = datetime.strptime(last_invoice['fechaHasta'], '%d/%m/%Y') + relativedelta(days=1) #get last day used in the last invoice to use next day as starting day for current cost
-			max_date = self.get_last_day_with_recorded_data()
-			end_date = max_date
-			if end_date == datetime.strptime(last_invoice['fechaHasta'], '%d/%m/%Y'):
-			#no hourly consumption since last invoice
-				index = 1
+			end_date = self.get_last_day_with_recorded_data()
+			if end_date <= datetime.strptime(last_invoice['fechaHasta'], '%d/%m/%Y'):
+			#no hourly consumption since last invoice, activate delay 1 to jump to the first billing data
+				self.delay = 1
 			else:
 				start_date, end_date, consumption_kwh = self.get_hourly_consumption(start_date,end_date)
 				real_reads= [1 for i in range(len(consumption_kwh))]
 				type_consumptions = str(index)
-		if index > 0:
+		if (index + self.delay) > 0:
+			index = index + self.delay
 			invoice = self.get_invoice(index-1)
 			start_date = datetime.strptime(invoice['fechaDesde'], '%d/%m/%Y')
 			end_date = datetime.strptime(invoice['fechaHasta'], '%d/%m/%Y')
