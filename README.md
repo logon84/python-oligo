@@ -14,25 +14,7 @@ from oligo import Iber
 connection = Iber()
 connection.login("user", "password")
 
-x = connection.calculate_invoice_PVPC(ree_token,i,pot)
-print(x)
-```
-Donde 'ree_token' es el token solicitado a Red Electrica española para la consulta de precios de electricidad e 'i' es:  
-0 para el calculo de la factura del consumo actual aun no facturado en una hipotética comercializadora PVPC.  
-1 para el calculo de la factura en una hipotética comercializadora PVPC con los consumos que sirvieron de base en la última factura de electricidad.  
-2 para el calculo de la factura en una hipotética comercializadora PVPC con los consumos que sirvieron de base en la penúltima factura de electricidad.  
-etc...  
-Con el parametro 'pot' podemos simular los cálculos con otra potencia diferente a la contratada. Para efectuar los cálculos con la potencia actualmente contrada establecer el parametro 'pot' a 0.
-
-Para simular continuamente consumo y facturas de cada mes de un modo más sencillo se recomienda utilizar la función:
-```python
-from oligo import Iber
-
-connection = Iber()
-connection.login("user", "password")
-
 connection.continous_calc(ree_token)
-print(x)
 ```
 
 #### Consultar consumo actual:
