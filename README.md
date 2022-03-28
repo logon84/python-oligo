@@ -24,6 +24,17 @@ Donde 'ree_token' es el token solicitado a Red Electrica española para la consu
 etc...  
 Con el parametro 'pot' podemos simular los cálculos con otra potencia diferente a la contratada. Para efectuar los cálculos con la potencia actualmente contrada establecer el parametro 'pot' a 0.
 
+Para simular continuamente consumo y facturas de cada mes de un modo más sencillo se recomienda utilizar la función:
+```python
+from oligo import Iber
+
+connection = Iber()
+connection.login("user", "password")
+
+connection.continous_calc(ree_token)
+print(x)
+```
+
 #### Consultar consumo actual:
 
 ```python
