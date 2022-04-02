@@ -202,19 +202,22 @@ class Iber:
 		next(csvdata)
 		last_date = start_date
 		for line in csvdata:
-			#spaguetti.run
+			#spaguetti.run!!
 			current_date = datetime.strptime(line.split(";")[1] + " " + str(int(line.split(";")[2]) - 1) + ":00", '%d/%m/%Y %H:%M')
-			if not(current_date == last_date + relativedelta(hours=1)) and not(current_date == last_date) and not(current_date.month == 3 and current_date.day in range (25,32) and current_date.isoweekday() == 7 and current_date.hour == 3):
-				 #NOT(current hour is consecutive to previous) and NOT(october hour change 0-1-2-2-3-4) and NOT(march hour change 0-1-3-4)
-				 #value missing detected, fill with 0's
-				 counter = 0
-				 while current_date > (last_date + relativedelta(hours=1)):
-					   consumption_kwh.append(0)
-					   last_date = last_date + relativedelta(hours=1)
-					   counter = counter + 1
-				 print("----------------ATENCION: FALTAN ALGUNOS VALORES DE CONSUMO EN ESTA SIMULACION-----------------(" + str(counter) + ")")
+			if not(current_date == last_date + relativedelta(hours=1)) and not(current_date == last_date):
+			#NOT(current hour is consecutive to previous) and NOT(october hour change 0-1-2-2-3-4)
+			#value missing detected, fill with 0's
+				counter = 0
+				while current_date > (last_date + relativedelta(hours=1)):
+					consumption_kwh.append(0)
+					last_date = last_date + relativedelta(hours=1)
+					counter = counter + 1
+				print("----------------ATENCION: FALTAN ALGUNOS VALORES DE CONSUMO EN ESTA SIMULACION-----------------(" + str(counter) + ")")
 			consumption_kwh.append(float(line.split(";")[3].replace(',','.')))
 			last_date = current_date
+			if current_date.month == 3 and current_date.day in range (25,32) and current_date.isoweekday() == 7 and current_date.hour == 22:
+			#MARCH HOUR FIX
+				last_date = last_date + relativedelta(hours=1)
 		return start_date, end_date, consumption_kwh
 
 	def get_hourly_consumption_by_invoice(self,invoice_number,start_date,end_date):
@@ -398,7 +401,7 @@ class Iber:
 		p2 = []
 		p3 = []
 		energy_real_read = 0
-		
+
 		for i in range(len(consumption_kwh)):
 			p1.append(int(period_mask[i] == 1) * consumption_kwh[i])
 			p2.append(int(period_mask[i] == 2) * consumption_kwh[i])
