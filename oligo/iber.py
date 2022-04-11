@@ -506,7 +506,7 @@ class Iber:
 			name_other2 = "NATURGY TARIFA COMPROMISO"
 			power_cost_other2 = self.roundup(pot * days_365 * 37.27/365, 2) + self.roundup(pot * days_366 * 37.27/366, 2)
 			energy_cost_other2 = self.roundup(sum(consumption_kwh) * 0.145151 ,2)
-			social_bonus_other2 = 0.02 * (days_365 + days_366)
+			social_bonus_other2 = 0
 
 			energy_and_power_cost_other = energy_cost_other + power_cost_other
 			energy_tax_other = self.roundup((energy_and_power_cost_other + social_bonus_other)*et_value,2)
