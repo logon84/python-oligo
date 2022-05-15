@@ -504,9 +504,19 @@ class Iber:
 			social_bonus_other = 0.02 * (days_365 + days_366)
 
 			name_other2 = "NATURGY TARIFA COMPROMISO"
-			power_cost_other2 = self.roundup(pot * days_365 * 37.27/365, 2) + self.roundup(pot * days_366 * 37.27/366, 2)
-			energy_cost_other2 = self.roundup(sum(consumption_kwh) * 0.145151 ,2)
+			change_price_date = datetime.strptime('31/03/2022', '%d/%m/%Y')
+			if start_date >= change_price_date:
+				power_cost_other2 = self.roundup(pot * ((end_date - start_date).days + 1) * 0.042644, 2) + self.roundup(pot * ((end_date - start_date).days + 1) * 0.054225, 2) 
+				energy_cost_other2 = self.roundup(sum(consumption_kwh) * 0.135938 ,2)
+			elif end_date < change_price_date:
+				power_cost_other2 = self.roundup(pot * ((end_date - start_date).days + 1) * 0.047561, 2) + self.roundup(pot * ((end_date - start_date).days + 1) * 0.054542, 2)
+				energy_cost_other2 = self.roundup(sum(consumption_kwh) * 0.145151 ,2)
+			else:
+				days_old_price = (change_price_date - start_date).days
+				power_cost_other2 = self.roundup(pot * days_old_price * 0.047561, 2) + self.roundup(pot * days_old_price * 0.054542, 2) + self.roundup(pot * ((end_date - change_price_date).days + 1) * 0.042644, 2) + self.roundup(pot * ((end_date - change_price_date).days + 1) * 0.054225, 2)
+				energy_cost_other2 = self.roundup(sum(consumption_kwh[:24*days_old_price]) * 0.145151 ,2) + self.roundup(sum(consumption_kwh[24*days_old_price:]) * 0.135938 ,2)
 			social_bonus_other2 = 0
+			 
 
 			energy_and_power_cost_other = energy_cost_other + power_cost_other
 			energy_tax_other = self.roundup((energy_and_power_cost_other + social_bonus_other)*et_value,2)
