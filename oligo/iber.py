@@ -83,7 +83,7 @@ class Iber:
 	day_reference_20td = datetime.strptime('01/06/2021', '%d/%m/%Y')
 	day_reference_vat10 = datetime.strptime('01/06/2021', '%d/%m/%Y')
 	day_reference_et05 = datetime.strptime('01/09/2021', '%d/%m/%Y')
-	day_reference_pot_reduct = datetime.strptime('15/09/2021', '%d/%m/%Y')
+	days_reference_pot_reduct = [datetime.strptime('15/09/2021', '%d/%m/%Y'),datetime.strptime('01/01/2022', '%d/%m/%Y'),datetime.strptime('31/03/2022', '%d/%m/%Y')]
 	
 
 	def __init__(self):
@@ -358,36 +358,63 @@ class Iber:
 			days_365 = (end_date - start_date).days+1 - days_366
 		return days_365, days_366
 	
-	def tax_toll_calc(self, pot, xp1, xp2, xp3, days, year_of_data):
+	def tax_toll_calc(self, start_date, end_date, pot, xp1, xp2, xp3):
 		#pot_toll = [low, peak]
 		#pot_tax = [low, peak]
 		#energy_toll = [superlow, low, peak]
 		#energy_tax = [superlow, low, peak]
-		if year_of_data == 2021:
-			pot_toll = [0.961130, 23.469833]
-			pot_tax = [0.463229, 7.202827]
-			energy_toll = [0.000714, 0.020624, 0.027378]
-			energy_tax = [0.005287, 0.021148, 0.105740]
-			year_days = 365
-		elif year_of_data == 20212:
-			pot_toll = [0.961130, 23.469833]
-			pot_tax = [0.018107, 0.281544]
-			energy_toll = [0.000714, 0.020624, 0.027378]
-			energy_tax = [0.000207, 0.000827, 0.004133]
-			year_days = 365
-		elif year_of_data == 2022:
-			pot_toll = [0.938890, 22.988256]
-			pot_tax = [0.319666, 4.970533]
-			energy_toll = [0.000703, 0.019146, 0.027787]
-			energy_tax = [0.003648, 0.014594, 0.072969]
-			year_days = 365
-		else:
-			print("ERROR - Unknown year for tax & toll calculation")
-			sys.exit()
+		
+		pot_toll = []
+		pot_tax = []
+		energy_toll = []
+		energy_tax = []
 
-		power_toll_tax_cost_peak = self.roundup(pot * days * pot_toll[1]/year_days, 2) + self.roundup(pot * days * pot_tax[1]/year_days, 2)
-		power_toll_tax_cost_low = self.roundup(pot * days * pot_toll[0]/year_days, 2) + self.roundup(pot * days * pot_tax[0]/year_days, 2)
-		energy_toll_tax_cost =  self.roundup(self.roundup(self.roundup(sum(xp1),2)*energy_toll[2],2) + self.roundup(self.roundup(sum(xp1),2)*energy_tax[2],2) + self.roundup(self.roundup(sum(xp2),2)*energy_toll[1],2) + self.roundup(self.roundup(sum(xp2),2)*energy_tax[1],2) + self.roundup(self.roundup(sum(xp3),2)*energy_toll[0],2) + self.roundup(self.roundup(sum(xp3),2)*energy_tax[0],2),2)
+		#2021:
+		pot_toll.append([0.961130, 23.469833])
+		pot_tax.append([0.463229, 7.202827])
+		energy_toll.append([0.000714, 0.020624, 0.027378])
+		energy_tax.append([0.005287, 0.021148, 0.105740])
+		#2021_2:
+		pot_toll.append([0.961130, 23.469833])
+		pot_tax.append([0.018107, 0.281544])
+		energy_toll.append([0.000714, 0.020624, 0.027378])
+		energy_tax.append([0.000207, 0.000827, 0.004133])
+		#2022:
+		pot_toll.append([0.938890, 22.988256])
+		pot_tax.append([0.319666, 4.970533])
+		energy_toll.append([0.000703, 0.019146, 0.027787])
+		energy_tax.append([0.003648, 0.014594, 0.072969])
+		#2022_2:
+		pot_toll.append([0.938890, 22.988256])
+		pot_tax.append([0.204242, 3.175787])
+		energy_toll.append([0.000703, 0.019146, 0.027787])
+		energy_tax.append([0.002331, 0.009324, 0.046622])
+		
+		index_start = len(self.days_reference_pot_reduct)
+		index_end = len(self.days_reference_pot_reduct)
+		for date in self.days_reference_pot_reduct:
+			if date > start_date:
+				index_start = self.days_reference_pot_reduct.index(date)
+				break
+		for date in self.days_reference_pot_reduct:
+			if date > end_date:
+				index_end = self.days_reference_pot_reduct.index(date)
+				break
+		if index_start == index_end:
+			days_1 = (end_date - start_date).days + 1
+			days_2 = 0
+		else:
+			days_1 = (self.days_reference_pot_reduct[index_start] - start_date).days
+			days_2 = (end_date - self.days_reference_pot_reduct[index_start]).days + 1
+		
+		power_toll_tax_cost_peak = self.roundup(pot * days_1 * pot_toll[index_start][1]/(365 + int(calendar.isleap(start_date.year))), 2) + self.roundup(pot * days_1 * pot_tax[index_start][1]/(365 + int(calendar.isleap(start_date.year))), 2) + self.roundup(pot * days_2 * pot_toll[index_end][1]/(365 + int(calendar.isleap(end_date.year))), 2) + self.roundup(pot * days_2 * pot_tax[index_end][1]/(365 + int(calendar.isleap(end_date.year))), 2)
+		power_toll_tax_cost_low = self.roundup(pot * days_1 * pot_toll[index_start][0]/(365 + int(calendar.isleap(start_date.year))), 2) + self.roundup(pot * days_1 * pot_tax[index_start][0]/(365 + int(calendar.isleap(start_date.year))), 2) + self.roundup(pot * days_2 * pot_toll[index_end][0]/(365 + int(calendar.isleap(end_date.year))), 2) + self.roundup(pot * days_2 * pot_tax[index_end][0]/(365 + int(calendar.isleap(end_date.year))), 2)
+		
+		energy_toll_tax_p1 = self.roundup(self.roundup(sum(xp1[:24*days_1]),2)*energy_toll[index_start][2],2) + self.roundup(self.roundup(sum(xp1[:24*days_1]),2)*energy_tax[index_start][2],2) + self.roundup(self.roundup(sum(xp1[24*days_1:]),2)*energy_toll[index_end][2],2) + self.roundup(self.roundup(sum(xp1[24*days_1:]),2)*energy_tax[index_end][2],2)
+		energy_toll_tax_p2 = self.roundup(self.roundup(sum(xp2[:24*days_1]),2)*energy_toll[index_start][1],2) + self.roundup(self.roundup(sum(xp2[:24*days_1]),2)*energy_tax[index_start][1],2) + self.roundup(self.roundup(sum(xp2[24*days_1:]),2)*energy_toll[index_end][1],2) + self.roundup(self.roundup(sum(xp2[24*days_1:]),2)*energy_tax[index_end][1],2)
+		energy_toll_tax_p3 = self.roundup(self.roundup(sum(xp3[:24*days_1]),2)*energy_toll[index_start][0],2) + self.roundup(self.roundup(sum(xp3[:24*days_1]),2)*energy_tax[index_start][0],2) + self.roundup(self.roundup(sum(xp3[24*days_1:]),2)*energy_toll[index_end][0],2) + self.roundup(self.roundup(sum(xp3[24*days_1:]),2)*energy_tax[index_end][0],2)
+		
+		energy_toll_tax_cost = self.roundup(energy_toll_tax_p1 + energy_toll_tax_p2 + energy_toll_tax_p3,2)
 		return power_toll_tax_cost_peak, power_toll_tax_cost_low, energy_toll_tax_cost
 
 					
@@ -449,40 +476,7 @@ class Iber:
 			if end_date > self.day_reference_et05:
 				et_value = 0.005
 			power_margin = self.roundup(pot * days_365 * 3.113/365, 2) + self.roundup(pot * days_366 * 3.113/366, 2)
-
-			if start_date < self.day_reference_pot_reduct:		
-				if end_date < self.day_reference_pot_reduct:
-					power_toll_tax_cost_peak, power_toll_tax_cost_low, energy_toll_tax_cost = self.tax_toll_calc(pot, p1, p2, p3, (end_date - start_date).days + 1, 2021)
-				else:
-					days_1 = (self.day_reference_pot_reduct - start_date).days
-					days_2 = (end_date - self.day_reference_pot_reduct).days + 1
-					
-					power_toll_tax_cost_peak_1, power_toll_tax_cost_low_1, energy_toll_tax_cost_1 = self.tax_toll_calc(pot, p1[:24*days_1], p2[:24*days_1], p3[:24*days_1], days_1, 2021)
-					power_toll_tax_cost_peak_2, power_toll_tax_cost_low_2, energy_toll_tax_cost_2 = self.tax_toll_calc(pot, p1[24*days_1:], p2[24*days_1:], p3[24*days_1:], days_2, 20212)
-					power_toll_tax_cost_peak = power_toll_tax_cost_peak_1 + power_toll_tax_cost_peak_2
-					power_toll_tax_cost_low = power_toll_tax_cost_low_1 + power_toll_tax_cost_low_2
-					energy_toll_tax_cost = energy_toll_tax_cost_1 + energy_toll_tax_cost_2
-
-			else: 
-				if start_date.year == end_date.year:
-					if end_date.year == 2021:
-						power_toll_tax_cost_peak, power_toll_tax_cost_low, energy_toll_tax_cost = self.tax_toll_calc(pot, p1, p2, p3, (end_date - start_date).days + 1, 20212)
-					else:
-						days_1 = (end_date - start_date).days + 1
-						power_toll_tax_cost_peak, power_toll_tax_cost_low, energy_toll_tax_cost = self.tax_toll_calc(pot, p1, p2, p3, (end_date - start_date).days + 1, end_date.year)
-				else:
-					days_1 = (datetime.strptime('31/12/' + str(start_date.year), '%d/%m/%Y') - start_date).days + 1
-					days_2 = (end_date - datetime.strptime('01/01/' + str(end_date.year), '%d/%m/%Y')).days + 1
-
-					if start_date.year == 2021:
-						power_toll_tax_cost_peak_1, power_toll_tax_cost_low_1, energy_toll_tax_cost_1 = self.tax_toll_calc(pot, p1[:24*days_1], p2[:24*days_1], p3[:24*days_1], days_1, 20212)
-						
-					else:
-						power_toll_tax_cost_peak_1, power_toll_tax_cost_low_1, energy_toll_tax_cost_1 = self.tax_toll_calc(pot, p1[:24*days_1], p2[:24*days_1], p3[:24*days_1], days_1, start_date.year)
-					power_toll_tax_cost_peak_2, power_toll_tax_cost_low_2, energy_toll_tax_cost_2 = self.tax_toll_calc(pot, p1[24*days_1:], p2[24*days_1:], p3[24*days_1:], days_2, end_date.year)
-					power_toll_tax_cost_peak = power_toll_tax_cost_peak_1 + power_toll_tax_cost_peak_2
-					power_toll_tax_cost_low = power_toll_tax_cost_low_1 + power_toll_tax_cost_low_2
-					energy_toll_tax_cost = energy_toll_tax_cost_1 + energy_toll_tax_cost_2
+			power_toll_tax_cost_peak, power_toll_tax_cost_low, energy_toll_tax_cost = self.tax_toll_calc(start_date, end_date, pot, p1, p2, p3)
 			
 			power_cost20TD = power_margin + power_toll_tax_cost_peak + power_toll_tax_cost_low
 			energy_cost_20TD_peak = self.roundup(avg_price_energy_var_price_peak*(self.roundup(sum(p1),2)),2)
