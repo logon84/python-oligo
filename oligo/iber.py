@@ -82,6 +82,7 @@ class Iber:
 	delay = 0
 	day_reference_20td = datetime.strptime('01/06/2021', '%d/%m/%Y')
 	day_reference_vat10 = datetime.strptime('01/06/2021', '%d/%m/%Y')
+	day_reference_vat5 = datetime.strptime('27/06/2022', '%d/%m/%Y')
 	day_reference_et05 = datetime.strptime('01/09/2021', '%d/%m/%Y')
 	days_reference_pot_reduct = [datetime.strptime('15/09/2021', '%d/%m/%Y'),datetime.strptime('01/01/2022', '%d/%m/%Y'),datetime.strptime('31/03/2022', '%d/%m/%Y')]
 	
@@ -473,6 +474,8 @@ class Iber:
 			et_value = 0.0511269632
 			if end_date > self.day_reference_vat10:
 				vat_value = 0.1
+			if end_date > self.day_reference_vat5:
+				vat_value = 0.05
 			if end_date > self.day_reference_et05:
 				et_value = 0.005
 			power_margin = self.roundup(pot * days_365 * 3.113/365, 2) + self.roundup(pot * days_366 * 3.113/366, 2)
@@ -496,6 +499,15 @@ class Iber:
 			power_cost_other = self.roundup(pot * days_365 * 39.05/365, 2) + self.roundup(pot * days_366 * 39.05/366, 2) 
 			energy_cost_other = self.roundup(sum(p1) * 0.145150 + sum(p2) * 0.145150 + sum(p3) * 0.145150,2)
 			social_bonus_other = 0.02 * (days_365 + days_366)
+			
+			energy_and_power_cost_other = energy_cost_other + power_cost_other
+			energy_tax_other = self.roundup((energy_and_power_cost_other + social_bonus_other)*et_value,2)
+			equipment_cost_other = self.roundup(days_365 * (0.81*12/365) + days_366 * (0.81*12/366),2)
+			total_other = energy_and_power_cost_other + energy_tax_other + equipment_cost_other + social_bonus_other
+			VAT_other = self.roundup(total_other*vat_value,2)
+			total_plus_vat_other = self.roundup(total_other + VAT_other,2)
+			
+			
 
 			name_other2 = "NATURGY TARIFA COMPROMISO"
 			change_price_date = datetime.strptime('31/03/2022', '%d/%m/%Y')
@@ -509,20 +521,16 @@ class Iber:
 				days_old_price = (change_price_date - start_date).days
 				days_new_price = (end_date - change_price_date).days + 1
 			power_cost_other2 = self.roundup(pot * days_old_price * 0.047561, 2) + self.roundup(pot * days_old_price * 0.054542, 2) + self.roundup(pot * days_new_price * 0.042644, 2) + self.roundup(pot * days_new_price * 0.054225, 2)
-			energy_cost_other2 = self.roundup(sum(consumption_kwh[:24*days_old_price]) * 0.145151 ,2) + self.roundup(sum(consumption_kwh[24*days_old_price:]) * 0.135938 ,2)
-			social_bonus_other2 = 0
-			 
-
-			energy_and_power_cost_other = energy_cost_other + power_cost_other
-			energy_tax_other = self.roundup((energy_and_power_cost_other + social_bonus_other)*et_value,2)
-			equipment_cost_other = self.roundup(days_365 * (0.81*12/365) + days_366 * (0.81*12/366),2)
-			total_other = energy_and_power_cost_other + energy_tax_other + equipment_cost_other + social_bonus_other
-			VAT_other = self.roundup(total_other*vat_value,2)
-			total_plus_vat_other = self.roundup(total_other + VAT_other,2)
+			energy_cost_other2 = self.roundup(sum(consumption_kwh[:24*days_old_price]) * 0.145151 ,2) + self.roundup(round(sum(consumption_kwh[24*days_old_price:]),-1) * 0.135938 ,2)
 			
 			energy_and_power_cost_other2 = energy_cost_other2 + power_cost_other2
-			energy_tax_other2 = self.roundup((energy_and_power_cost_other2 + social_bonus_other2)*et_value,2)
-			equipment_cost_other2 = self.roundup(days_365 * (0.81*12/365) + days_366 * (0.81*12/366),2)
+			if end_date >= datetime.strptime('06/07/2022', '%d/%m/%Y'):
+				social_bonus_other2 = 0.03054 * ((end_date - datetime.strptime('06/07/2022', '%d/%m/%Y')).days + 1)
+				energy_tax_other2 = round(sum(consumption_kwh[24*days_old_price:]),-1)/1000
+			else:
+				social_bonus_other2 = 0
+				energy_tax_other2 = self.roundup((energy_and_power_cost_other2 + social_bonus_other2)*et_value,2)
+			equipment_cost_other2 = self.roundup(days_365 * round((0.81*12/365),3) + days_366 * round((0.81*12/366),3),2)
 			total_other2 = energy_and_power_cost_other2 + energy_tax_other2 + equipment_cost_other2 + social_bonus_other2
 			VAT_other2 = self.roundup(total_other2*vat_value,2)
 			total_plus_vat_other2 = self.roundup(total_other2 + VAT_other2,2)
