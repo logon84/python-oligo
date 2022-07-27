@@ -296,9 +296,9 @@ class Iber:
 			results = loop.run_until_complete(asyncio.gather(*parallel_http_get))
 			
 			for i in range(len(results[0]['indicator']['values'])):
-				if ID20TDzone in results[0]['indicator']['values'][i]['geo_name'] or unidecode.unidecode(ID20TDzone) in results[0]['indicator']['values'][i]['geo_name']:
+				if unidecode.unidecode(results[0]['indicator']['values'][i]['geo_name']) == unidecode.unidecode(ID20TDzone):
 					energy20TD.append(self.roundup(float(results[0]['indicator']['values'][i]['value'])/1000, 6))
-				if ID20TDzone in results[1]['indicator']['values'][i]['geo_name'] or unidecode.unidecode(ID20TDzone) in results[1]['indicator']['values'][i]['geo_name']:			
+				if unidecode.unidecode(results[1]['indicator']['values'][i]['geo_name']) == unidecode.unidecode(ID20TDzone):		
 					period_mask.append(int(results[1]['indicator']['values'][i]['value']))
 			return [0] * len(energy20TD), energy20TD, period_mask
 		elif end_date < self.day_reference_20td:
