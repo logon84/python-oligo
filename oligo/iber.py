@@ -7,6 +7,7 @@ from decimal import Decimal
 import aiohttp
 import asyncio
 import sys
+import unidecode
 
 try:
 	# Win32
@@ -295,11 +296,10 @@ class Iber:
 			results = loop.run_until_complete(asyncio.gather(*parallel_http_get))
 			
 			for i in range(len(results[0]['indicator']['values'])):
-				if results[0]['indicator']['values'][i]['geo_name'] == ID20TDzone:
+				if ID20TDzone in results[0]['indicator']['values'][i]['geo_name'] or unidecode.unidecode(ID20TDzone) in results[0]['indicator']['values'][i]['geo_name']:
 					energy20TD.append(self.roundup(float(results[0]['indicator']['values'][i]['value'])/1000, 6))
-				if results[1]['indicator']['values'][i]['geo_name'] == ID20TDzone:			
+				if ID20TDzone in results[1]['indicator']['values'][i]['geo_name'] or unidecode.unidecode(ID20TDzone) in results[1]['indicator']['values'][i]['geo_name']:			
 					period_mask.append(int(results[1]['indicator']['values'][i]['value']))
-
 			return [0] * len(energy20TD), energy20TD, period_mask
 		elif end_date < self.day_reference_20td:
 		#2.0A / 2.0DHA calc
