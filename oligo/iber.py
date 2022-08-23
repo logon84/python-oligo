@@ -79,13 +79,13 @@ class Iber:
 		'Authorization': "Token token=",
 		'Cookie': ""
 	}
-	__hourtype_url = "https://api.esios.ree.es/indicators/1002?start_date=\"{0}\"T00:00:00&end_date=\"{1}\"T23:00:00"
 	delay = 0
 	day_reference_20td = datetime.strptime('01/06/2021', '%d/%m/%Y')
 	day_reference_vat10 = datetime.strptime('01/06/2021', '%d/%m/%Y')
 	day_reference_vat5 = datetime.strptime('27/06/2022', '%d/%m/%Y')
 	day_reference_et05 = datetime.strptime('01/09/2021', '%d/%m/%Y')
 	days_reference_pot_reduct = [datetime.strptime('15/09/2021', '%d/%m/%Y'),datetime.strptime('01/01/2022', '%d/%m/%Y'),datetime.strptime('31/03/2022', '%d/%m/%Y')]
+	day_reference_gas_excess = datetime.strptime('15/06/2022', '%d/%m/%Y')
 	
 
 	def __init__(self):
@@ -278,29 +278,50 @@ class Iber:
 		IDenergy20A = '10254'
 		IDenergy20DHA = '10255'
 		IDenergy20TD = '10393'
+		IDhourtype = '1002'
 		ID20TDzone = 'Península'
+		IDExcess = '1900'
 
 		energy20A = []
 		energy20DHA = []
+		
 		energy20TD = []
+		excess_price = []
 		period_mask = []
+		
+		energy20TD_total = []
 		
 		self.__headers_ree['Authorization'] = "Token token=" + token
 
 		if start_date >= self.day_reference_20td:
 		#2.0TD calc
 			url_0 = self.__ree_api_url.format(IDenergy20TD,start_date.strftime('%Y-%m-%d'),end_date.strftime('%Y-%m-%d'))
-			url_1 = self.__hourtype_url.format(start_date.strftime('%Y-%m-%d'),end_date.strftime('%Y-%m-%d'))
-			parallel_http_get = [self.get(url_0, self.__headers_ree),self.get(url_1, self.__headers_ree)]
+			url_1 = self.__ree_api_url.format(IDhourtype,start_date.strftime('%Y-%m-%d'),end_date.strftime('%Y-%m-%d'))
+			url_2 = self.__ree_api_url.format(IDExcess,start_date.strftime('%Y-%m-%d'),end_date.strftime('%Y-%m-%d'))
+			parallel_http_get = [self.get(url_0, self.__headers_ree),self.get(url_1, self.__headers_ree),self.get(url_2, self.__headers_ree)]
 			loop = asyncio.get_event_loop()
 			results = loop.run_until_complete(asyncio.gather(*parallel_http_get))
-			
+
 			for i in range(len(results[0]['indicator']['values'])):
 				if unidecode.unidecode(results[0]['indicator']['values'][i]['geo_name']) == unidecode.unidecode(ID20TDzone):
 					energy20TD.append(self.roundup(float(results[0]['indicator']['values'][i]['value'])/1000, 6))
 				if unidecode.unidecode(results[1]['indicator']['values'][i]['geo_name']) == unidecode.unidecode(ID20TDzone):		
 					period_mask.append(int(results[1]['indicator']['values'][i]['value']))
-			return [0] * len(energy20TD), energy20TD, period_mask
+			
+			for i in range(len(results[2]['indicator']['values'])):
+				if unidecode.unidecode(results[2]['indicator']['values'][i]['geo_name']) == unidecode.unidecode(ID20TDzone):
+					excess_price.append(self.roundup(float(results[2]['indicator']['values'][i]['value'])/1000, 6))
+
+			while len(energy20TD) != len(excess_price):
+				if start_date < self.day_reference_gas_excess:
+					excess_price.insert(0,0)
+				if end_date > datetime.strptime('30/09/2023', '%d/%m/%Y'):
+					excess_price.append(0)
+			
+			for i in range(len(energy20TD)):
+				energy20TD_total.append(energy20TD[i] + excess_price[i])
+			
+			return [0] * len(energy20TD), energy20TD_total, period_mask
 		elif end_date < self.day_reference_20td:
 		#2.0A / 2.0DHA calc
 			url_0 = self.__ree_api_url.format(IDenergy20A,start_date.strftime('%Y-%m-%d'),end_date.strftime('%Y-%m-%d'))
@@ -321,7 +342,7 @@ class Iber:
 			url_0 = self.__ree_api_url.format(IDenergy20A,start_date.strftime('%Y-%m-%d'),(self.day_reference_20td - relativedelta(days=1)).strftime('%Y-%m-%d'))
 			url_1 = self.__ree_api_url.format(IDenergy20DHA,start_date.strftime('%Y-%m-%d'),(self.day_reference_20td - relativedelta(days=1)).strftime('%Y-%m-%d'))
 			url_2 = self.__ree_api_url.format(IDenergy20TD,self.day_reference_20td.strftime('%Y-%m-%d'),end_date.strftime('%Y-%m-%d'))
-			url_3 = self.__hourtype_url.format(IDenergy20TD,self.day_reference_20td.strftime('%Y-%m-%d'),end_date.strftime('%Y-%m-%d'))
+			url_3 = self.__ree_api_url.format(IDhourtype,self.day_reference_20td.strftime('%Y-%m-%d'),end_date.strftime('%Y-%m-%d'))
 			parallel_http_get = [self.get(url_0, self.__headers_ree),self.get(url_1, self.__headers_ree), self.get(url_2, self.__headers_ree), self.get(url_3, self.__headers_i_de)]
 			loop = asyncio.get_event_loop()
 			results = loop.run_until_complete(asyncio.gather(*parallel_http_get))
@@ -481,6 +502,9 @@ class Iber:
 			power_margin = self.roundup(pot * days_365 * 3.113/365, 2) + self.roundup(pot * days_366 * 3.113/366, 2)
 			power_toll_tax_cost_peak, power_toll_tax_cost_low, energy_toll_tax_cost = self.tax_toll_calc(start_date, end_date, pot, p1, p2, p3)
 			
+			print(energy_toll_tax_cost)
+			print(power_toll_tax_cost_low)
+			print(power_toll_tax_cost_peak)
 			power_cost20TD = power_margin + power_toll_tax_cost_peak + power_toll_tax_cost_low
 			energy_cost_20TD_peak = self.roundup(avg_price_energy_var_price_peak*(self.roundup(sum(p1),2)),2)
 			energy_cost_20TD_low = self.roundup(avg_price_energy_var_price_low*(self.roundup(sum(p2),2)),2)
@@ -689,11 +713,14 @@ class Iber:
 		json_response = response.json()
 		monthly_max_power = ["NO_DATA", "NO_DATA", "NO_DATA", "NO_DATA", "NO_DATA", "NO_DATA", "NO_DATA", "NO_DATA", "NO_DATA", "NO_DATA", "NO_DATA", "NO_DATA"]
 		print("[POTENCIAS MAXIMAS DEL AÑO " + end_date.strftime('%Y') + "]\n")
-		for i in range(len(json_response["potMaxMens"])):
-			  monthly_max_power[int(json_response["potMaxMens"][i]["name"][3:5])-1] = str(json_response["potMaxMens"][i]["y"]) + "w"
-		for i in range(len(monthly_max_power)):
-			  print("\t\t{:02d}".format(i+1) + "/"+end_date.strftime('%Y') + ": " + monthly_max_power[i])
-		print("\n")			   
+		try:
+			for i in range(len(json_response["potMaxMens"])):
+				  monthly_max_power[int(json_response["potMaxMens"][i]["name"][3:5])-1] = str(json_response["potMaxMens"][i]["y"]) + "w"
+			for i in range(len(monthly_max_power)):
+				  print("\t\t{:02d}".format(i+1) + "/"+end_date.strftime('%Y') + ": " + monthly_max_power[i])
+			print("\n")
+		except:
+			print("No power data available\n\n")			   
 		return
 
 	def continuous_calc(self,ree_token):
