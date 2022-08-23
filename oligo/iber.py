@@ -501,10 +501,6 @@ class Iber:
 				et_value = 0.005
 			power_margin = self.roundup(pot * days_365 * 3.113/365, 2) + self.roundup(pot * days_366 * 3.113/366, 2)
 			power_toll_tax_cost_peak, power_toll_tax_cost_low, energy_toll_tax_cost = self.tax_toll_calc(start_date, end_date, pot, p1, p2, p3)
-			
-			print(energy_toll_tax_cost)
-			print(power_toll_tax_cost_low)
-			print(power_toll_tax_cost_peak)
 			power_cost20TD = power_margin + power_toll_tax_cost_peak + power_toll_tax_cost_low
 			energy_cost_20TD_peak = self.roundup(avg_price_energy_var_price_peak*(self.roundup(sum(p1),2)),2)
 			energy_cost_20TD_low = self.roundup(avg_price_energy_var_price_low*(self.roundup(sum(p2),2)),2)
