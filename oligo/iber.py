@@ -315,7 +315,7 @@ class Iber:
 			while len(energy20TD) != len(excess_price):
 				if start_date < self.day_reference_gas_excess:
 					excess_price.insert(0,0)
-				if end_date > datetime.strptime('30/09/2023', '%d/%m/%Y'):
+				if end_date > datetime.strptime('31/05/2023', '%d/%m/%Y'):
 					excess_price.append(0)
 			
 			for i in range(len(energy20TD)):
@@ -516,9 +516,9 @@ class Iber:
 			
 			#####################_____OTHER_COMPARISON (fill values)_____###############################
 			name_other = "IBERDROLA PLAN ESTABLE"
-			power_cost_other = self.roundup(pot * days_365 * 39.05/365, 2) + self.roundup(pot * days_366 * 39.05/366, 2) 
-			energy_cost_other = self.roundup(sum(p1) * 0.145150 + sum(p2) * 0.145150 + sum(p3) * 0.145150,2)
-			social_bonus_other = 0.02 * (days_365 + days_366)
+			power_cost_other = self.roundup(pot * days_365 * 34.77/365, 2) + self.roundup(pot * days_366 * 34.77/366, 2) 
+			energy_cost_other = self.roundup(sum(p1) * 0.172980 + sum(p2) * 0.172980 + sum(p3) * 0.172980,2)
+			social_bonus_other = 0.03054 * (days_365 + days_366)
 			
 			energy_and_power_cost_other = energy_cost_other + power_cost_other
 			energy_tax_other = self.roundup((energy_and_power_cost_other + social_bonus_other)*et_value,2)
@@ -545,8 +545,12 @@ class Iber:
 			
 			energy_and_power_cost_other2 = energy_cost_other2 + power_cost_other2
 			if end_date >= datetime.strptime('06/07/2022', '%d/%m/%Y'):
-				social_bonus_other2 = 0.03054 * ((end_date - datetime.strptime('06/07/2022', '%d/%m/%Y')).days + 1)
-				energy_tax_other2 = round(sum(consumption_kwh[24*days_old_price:]),-1)/1000
+				if start_date >= datetime.strptime('06/07/2022', '%d/%m/%Y'):
+					social_bonus_other2 = 0.03054 * days_new_price
+					energy_tax_other2 = round(sum(consumption_kwh),-1)/1000
+				else:
+					social_bonus_other2 = 0.03054 * ((end_date - datetime.strptime('06/07/2022', '%d/%m/%Y')).days + 1)
+					energy_tax_other2 = round(sum(consumption_kwh[24*days_old_price:]),-1)/1000
 			else:
 				social_bonus_other2 = 0
 				energy_tax_other2 = self.roundup((energy_and_power_cost_other2 + social_bonus_other2)*et_value,2)
