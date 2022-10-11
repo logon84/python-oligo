@@ -1,4 +1,4 @@
-ffrom requests import Session
+from requests import Session
 from datetime import datetime
 from io import StringIO
 from dateutil.relativedelta import relativedelta
