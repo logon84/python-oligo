@@ -205,20 +205,24 @@ class Iber:
 		last_date = start_date
 		for line in csvdata:
 			#spaguetti.run!!
-			current_date = datetime.strptime(line.split(";")[1] + " " + str(int(line.split(";")[2]) - 1) + ":00", '%d/%m/%Y %H:%M')
-			if not(current_date == last_date + relativedelta(hours=1)) and not(current_date == last_date):
-			#NOT(current hour is consecutive to previous) and NOT(october hour change 0-1-2-2-3-4)
-			#value missing detected, fill with 0's
-				counter = 0
-				while current_date > (last_date + relativedelta(hours=1)):
-					consumption_kwh.append(0)
-					last_date = last_date + relativedelta(hours=1)
-					counter = counter + 1
-				print("----------------ATENCION: FALTAN ALGUNOS VALORES DE CONSUMO EN ESTA SIMULACION-----------------(" + str(counter) + ")")
+			if int(line.split(";")[2]) == 25:
+				#OCTOBER HOUR FIX
+				current_date = datetime.strptime(line.split(";")[1] + " " + "23" + ":00", '%d/%m/%Y %H:%M')
+			else:
+				current_date = datetime.strptime(line.split(";")[1] + " " + str(int(line.split(";")[2]) - 1) + ":00", '%d/%m/%Y %H:%M')
+				if not(current_date == last_date + relativedelta(hours=1)) and not(current_date == last_date):
+					#NOT(current hour is consecutive to previous)
+					#value missing detected, fill with 0's
+					counter = 0
+					while current_date > (last_date + relativedelta(hours=1)):
+						consumption_kwh.append(0)
+						last_date = last_date + relativedelta(hours=1)
+						counter = counter + 1
+					print("----------------ATENCION: FALTAN ALGUNOS VALORES DE CONSUMO EN ESTA SIMULACION-----------------(" + str(counter) + ")")
 			consumption_kwh.append(float(line.split(";")[3].replace(',','.')))
 			last_date = current_date
 			if current_date.month == 3 and current_date.day in range (25,32) and current_date.isoweekday() == 7 and current_date.hour == 22:
-			#MARCH HOUR FIX
+				#MARCH HOUR FIX
 				last_date = last_date + relativedelta(hours=1)
 		return start_date, end_date, consumption_kwh
 
