@@ -219,7 +219,7 @@ class Iber:
 						last_date = last_date + relativedelta(hours=1)
 						counter = counter + 1
 					print("----------------ATENCION: FALTAN ALGUNOS VALORES DE CONSUMO EN ESTA SIMULACION-----------------(" + str(counter) + ")")
-			consumption_kwh.append(float(line.split(";")[4].replace(',','.')))
+			consumption_kwh.append(float(line.split(";")[3].replace(',','.')))
 			last_date = current_date
 			if current_date.month == 3 and current_date.day in range (25,32) and current_date.isoweekday() == 7 and current_date.hour == 22:
 				#MARCH HOUR FIX
