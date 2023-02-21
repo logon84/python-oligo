@@ -70,13 +70,12 @@ class Iber:
 		'cache-control': "no-cache"
 	}
 
-	__ree_api_url = "https://api.esios.ree.es/indicators/{0}?start_date=\"{1}\"T00:00:00&end_date=\"{2}\"T23:00:00"
+	__ree_api_url = "https://api.esios.ree.es/indicators/{0}?start_date={1}T00:00:00&end_date={2}T23:00:00"
 	__headers_ree = {
 		'User-Agent': "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Ubuntu Chromium/77.0.3865.90 Chrome/77.0.3865.90 Safari/537.36",
 		'accept': "application/json; application/vnd.esios-api-v1+json",
 		'content-type': "application/json",
 		'Host': "api.esios.ree.es",
-		'Authorization': "Token token=",
 		'Cookie': ""
 	}
 	delay = 0
@@ -207,7 +206,7 @@ class Iber:
 			#spaguetti.run!!
 			if int(line.split(";")[2]) == 25:
 				#OCTOBER HOUR FIX
-				current_date = datetime.strptime(line.split(";")[1] + " " + "23" + ":00", '%d/%m/%Y %H:%M')
+				current_date = datetime.strptime(line.split(";")[1] + " 23:00", '%d/%m/%Y %H:%M')
 			else:
 				current_date = datetime.strptime(line.split(";")[1] + " " + str(int(line.split(";")[2]) - 1) + ":00", '%d/%m/%Y %H:%M')
 				if not(current_date == last_date + relativedelta(hours=1)) and not(current_date == last_date):
@@ -295,7 +294,7 @@ class Iber:
 		
 		energy20TD_total = []
 		
-		self.__headers_ree['Authorization'] = "Token token=" + token
+		self.__headers_ree['x-api-key'] = token
 
 		if start_date >= self.day_reference_20td:
 		#2.0TD calc
