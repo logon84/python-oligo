@@ -10,6 +10,10 @@ import asyncio
 import sys
 import unidecode
 import glob
+from pathlib import Path
+import traceback
+
+
 
 try:
     # Win32
@@ -81,9 +85,35 @@ class Iber:
         'Host': "api.esios.ree.es",
         'Cookie': ""
     }
-    delay = 0
-    day_reference_20td = datetime.strptime('01/06/2021', '%d/%m/%Y')
-    days_reference_pot_reduct = [datetime.strptime('15/09/2021', '%d/%m/%Y'),datetime.strptime('01/01/2022', '%d/%m/%Y'),datetime.strptime('31/03/2022', '%d/%m/%Y'),datetime.strptime('31/05/2024', '%d/%m/%Y')]
+    days_reference_pot_reduct = [datetime.strptime('15/09/2021', '%d/%m/%Y'),datetime.strptime('01/01/2022', '%d/%m/%Y'),datetime.strptime('31/03/2022', '%d/%m/%Y'),datetime.strptime('31/05/2024', '%d/%m/%Y'),datetime.strptime('01/01/2025', '%d/%m/%Y')]
+
+    COMPANY_DB = {
+        #e_high, e_mid, e_low, p_high, p_low, social_bonus
+        "PVPC 2.0TD":[0, 0, 0, 0.090411 ,0.046575, 0.0339785],
+        "ENERGYA VM":[0.099750 ,0.099750 ,0.099750 ,0.090411 ,0.046575, 0.038455],
+        "Endesa Conecta":[0.100848 ,0.100848 ,0.100848 ,0.103919 ,0.032048, 0.038455],
+        "TE A tu aire siempre":[0.101008 ,0.101008 ,0.101008 ,0.068343 ,0.068343, 0.038455],
+        "Plenitude (<5 kW)":[0.101673 ,0.101673 ,0.101673 ,0.073806 ,0.073806, 0.038455],
+        "Imagina":[0.105000 ,0.105000 ,0.105000 ,0.083000 ,0.045000, 0.038455],
+        "Visalia":[0.105938 ,0.105938 ,0.105938 ,0.080305 ,0.013576, 0.038455],
+        "Nufri CN023":[0.108125 ,0.108125 ,0.108125 ,0.079977 ,0.033339, 0.038455],
+        "Gana Energía":[0.113600 ,0.113600 ,0.113600 ,0.127406 ,0.049264, 0.038455],
+        "Naturgy por uso":[0.119166 ,0.119166 ,0.119166 ,0.108163 ,0.033392, 0.038455],
+        "Repsol":[0.119746 ,0.119746 ,0.119746 ,0.068219 ,0.068219, 0.038455],
+        "Octopus Relax":[0.123000 ,0.123000 ,0.123000 ,0.093000 ,0.025000, 0.038455],
+        "Iberdrola Online":[0.124900 ,0.124900 ,0.124900 ,0.095890 ,0.046548, 0.038455],
+        "Lumisa":[0.125141 ,0.125141 ,0.125141 ,0.118638 ,0.024595, 0.038455],
+        "Endesa One":[0.133783 ,0.133783 ,0.133783 ,0.112138 ,0.040267, 0.038455],
+        "Endesa Libre":[0.139610 ,0.139610 ,0.139610 ,0.112138 ,0.040267, 0.038455],
+        "TE A tu aire programa tu ahorro 3P":[0.138688 ,0.097378 ,0.080896 ,0.068356 ,0.068329, 0.038455],
+        "ENERGYA VM 3P":[0.145800 ,0.118800 ,0.099810 ,0.079177 ,0.002729, 0.038455],
+        "Nufri CN023 3P":[0.162850 ,0.106026 ,0.076359 ,0.079977 ,0.033339, 0.006364],
+        "Imagina 3P":[0.164000 ,0.105000 ,0.071000 ,0.095000 ,0.021000, 0.038455],
+        "Iberdrola Online 3P":[0.176576 ,0.113892 ,0.083904 ,0.086301 ,0.013014, 0.038455],
+        "Naturgy noche luz 3P":[0.185461 ,0.116414 ,0.082334 ,0.108163 ,0.033392, 0.038455],
+        "Naturgy Tarifa Compromiso":[0.135334 ,0.135334 ,0.135334 ,0.054542 ,0.047561, 0.038455],
+        "Octopus 3P":[0.195000 ,0.121000 ,0.083000 ,0.093000 ,0.025000, 0.038455],
+        "Endesa One 3P":[0.200113 ,0.123560 ,0.092084 ,0.110001 ,0.038130, 0.038455]}
     
 
     def __init__(self):
@@ -170,7 +200,7 @@ class Iber:
         else:
             return False
 
-    def contracts(self):
+    def contract_list(self):
         self.__check_session()
         response = self.__session.request("GET", self.__contracts_url, headers=self.__headers_i_de)
         if response.status_code != 200:
@@ -181,7 +211,7 @@ class Iber:
         if json_response["success"]:
             return json_response["contratos"]
 
-    def contract(self):
+    def contract_details(self):
         self.__check_session()
         response = self.__session.request("GET", self.__contract_detail_url, headers=self.__headers_i_de)
         if response.status_code != 200:
@@ -235,7 +265,7 @@ class Iber:
             raise ResponseException
         if not response.text:
             raise NoResponseException
-        consumption_kwh = []
+        kwh = []
         csvdata = StringIO(response.text)
         next(csvdata)
         last_date = start_date
@@ -251,16 +281,16 @@ class Iber:
                     #value missing detected, fill with 0's
                     counter = 0
                     while current_date > (last_date + relativedelta(hours=1)):
-                        consumption_kwh.append(0)
+                        kwh.append(0)
                         last_date = last_date + relativedelta(hours=1)
                         counter = counter + 1
                     print("----------------ATENCION: FALTAN ALGUNOS VALORES DE CONSUMO EN ESTA SIMULACION-----------------(" + str(counter) + ")")
-            consumption_kwh.append(float(line.split(";")[3].replace(',','.')))
+            kwh.append(float(line.split(";")[3].replace(',','.')))
             last_date = current_date
             if current_date.month == 3 and current_date.day in range (25,32) and current_date.isoweekday() == 7 and current_date.hour == 22:
                 #MARCH HOUR FIX
                 last_date = last_date + relativedelta(hours=1)
-        return start_date, end_date, consumption_kwh
+        return [kwh, [1 for i in range(len(kwh))]]
 
     def get_hourly_consumption_by_invoice(self,invoice_number,start_date,end_date):
         """Returns hour consumption by invoice.This DOES return R and E consumptions, so it's better for costs comparison"""
@@ -270,53 +300,63 @@ class Iber:
             raise ResponseException
         if not response.text:
             raise NoResponseException
-        consumption_kwh = []
-        real_reads = []
+        kwh = []
+        real_reads_mask = []
         csvdata = StringIO(response.text)
         next(csvdata)
         for line in csvdata:
-            consumption_kwh.append(float(line.split(";")[3].replace(',','.')))
-            real_reads.append(int("R" in line.split(";")[4]))
-        return start_date, end_date, consumption_kwh, real_reads
+            kwh.append(float(line.split(";")[3].replace(',','.')))
+            real_reads_mask.append(int("R" in line.split(";")[4]))
+        return [kwh, real_reads_mask]
 
-    def get_consumption(self,index,local=0):
-        """Returns consumptions. Index 0 means current consumption not yet invoiced. Bigger indexes returns consumption by every already created invoice"""
+    def get_consumption_details(self,index):
+        """Returns detailed consumptions. Index 0 means current consumption not yet invoiced. Bigger indexes returns consumption by every already created invoice"""
         self.__check_session()
         real_reads = []
-        if local == 0:
-            if index == 0: #get current cost
-                last_invoice = self.get_invoice(0) #get last invoice
-                start_date = datetime.strptime(last_invoice['fechaHasta'], '%d/%m/%Y') + relativedelta(days=1) #get last day used in the last invoice to use next day as starting day for current cost
-                end_date = self.get_last_day_with_recorded_data()
-                if end_date <= datetime.strptime(last_invoice['fechaHasta'], '%d/%m/%Y'):
-                #no hourly consumption since last invoice, activate delay 1 to jump to the first billing data
-                    self.delay = 1
-                else:
-                    start_date, end_date, consumption_kwh = self.get_hourly_consumption(start_date,end_date)
-                    real_reads= [1 for i in range(len(consumption_kwh))]
-                    type_consumptions = str(index)
-            if (index + self.delay) > 0:
-                index = index + self.delay
-                invoice = self.get_invoice(index-1)
-                start_date = datetime.strptime(invoice['fechaDesde'], '%d/%m/%Y')
-                end_date = datetime.strptime(invoice['fechaHasta'], '%d/%m/%Y')
-                start_date, end_date, consumption_kwh, real_reads = self.get_hourly_consumption_by_invoice(invoice['numero'],start_date,end_date)
-                type_consumptions = str(index)
+        if index == 0: #get current cost
+            last_invoice = self.get_invoice(0) #get last invoice
+            start_date = datetime.strptime(last_invoice['fechaHasta'], '%d/%m/%Y') + relativedelta(days=1) #get last day used in the last invoice to use next day as starting day for current cost
+            end_date = self.get_last_day_with_recorded_data()
+            if end_date <= datetime.strptime(last_invoice['fechaHasta'], '%d/%m/%Y'):
+            #no hourly consumption since last invoice
+                end_date = self.today
+                kwh = [0 for i in range(24 * (end_date - start_date).days + 1)]
+                real_reads_mask= [0 for i in range(len(kwh))]
+                energy_reads = [kwh, real_reads_mask]
+            else:
+                energy_reads = self.get_hourly_consumption(start_date,end_date)
         else:
-            f = open('C:\\Users\\TESEO-DEMO\\Downloads\\peik\\' + str(index+1) + '.csv', "r")
-            consumption_kwh = []
-            real_reads = []
-            csvdata = StringIO(f.read())
-            next(csvdata)
-            for line in csvdata:
-                consumption_kwh.append(float(line.split(";")[3].replace(',','.')))
-                real_reads.append(int("R" in line.split(";")[4]))
-            f.close()
-            start_date = datetime.strptime("01/"+ str(index + 1).zfill(2) +"/2022", '%d/%m/%Y')
-            end_date = datetime.strptime("01/"+ str(index + 2).zfill(2) +"/2022", '%d/%m/%Y') - relativedelta(days=1)
-            type_consumptions = str(index+1)
-            
-        return start_date, end_date, consumption_kwh, real_reads, type_consumptions
+            invoice = self.get_invoice(index-1)
+            start_date = datetime.strptime(invoice['fechaDesde'], '%d/%m/%Y')
+            end_date = datetime.strptime(invoice['fechaHasta'], '%d/%m/%Y')
+            energy_reads = self.get_hourly_consumption_by_invoice(invoice['numero'],start_date,end_date)
+
+        period_mask = self.get_ree_data(start_date,end_date, "period_mask")
+        p1 = []
+        p2 = []
+        p3 = []
+        energy_real_reads = []
+        consumption_kwh = energy_reads[0]
+        real_reads_mask = energy_reads[1]
+        for i in range(len(consumption_kwh)):
+            p1.append(int(period_mask[i] == 1) * consumption_kwh[i])
+            p2.append(int(period_mask[i] == 2) * consumption_kwh[i])
+            p3.append(int(period_mask[i] == 3) * consumption_kwh[i])
+            energy_real_reads.append(real_reads_mask[i]*consumption_kwh[i])
+        PERC_REAL_KWH = self.roundup(sum(energy_real_reads)*100/sum(consumption_kwh),2)
+        PERC_ESTIM_KWH = 100 - PERC_REAL_KWH
+        PERC_REAL_H = self.roundup(sum(real_reads_mask)*100/len(real_reads_mask),2)
+        PERC_ESTIM_H = 100 - PERC_REAL_H
+        try:
+            AVERAGE_KWH_H_REAL = self.roundup(sum(energy_real_reads)/sum(real_reads_mask),2)
+        except:
+            AVERAGE_KWH_H_REAL = 0
+        try:
+            AVERAGE_KWH_H_ESTIM = self.roundup((sum(consumption_kwh)-sum(energy_real_reads))/(len(real_reads_mask)-sum(real_reads_mask)),2)
+        except:
+             AVERAGE_KWH_H_ESTIM = 0
+        energy_calcs = [PERC_REAL_H, PERC_REAL_KWH, AVERAGE_KWH_H_REAL, PERC_ESTIM_H, PERC_ESTIM_KWH, AVERAGE_KWH_H_ESTIM]		
+        return start_date, end_date, p1, p2, p3, energy_calcs
 
     async def get(self,url,headers):
         """async request.GET to speedup REE data fetch"""
@@ -328,61 +368,34 @@ class Iber:
                      raise NoResponseException
                 return await response.json()
 
-    def get_ree_data(self,token,start_date,end_date):
-        """Returns energy prices from REE"""
+    def get_ree_data(self,start_date,end_date, data_type):
+        """Returns energy prices/period_mask from REE"""
         IDenergy20TD = '1001'
         IDhourtype = '1002'
         ID20TDzone = 'Península'
+        data = []
         
-        energy20TD = []
-        period_mask = []
-        
+        p = Path(__file__).with_name('ree_token.txt')
+        with p.open('r') as f:
+            token=f.read().replace("\n", "")
         self.__headers_ree['x-api-key'] = token
 
-        if start_date >= self.day_reference_20td:
-        #2.0TD calc
+        if data_type == "energy_price":
             url_0 = self.__ree_api_url.format(IDenergy20TD,start_date.strftime('%Y-%m-%d'),end_date.strftime('%Y-%m-%d'))
-            url_1 = self.__ree_api_url.format(IDhourtype,start_date.strftime('%Y-%m-%d'),end_date.strftime('%Y-%m-%d'))
-            parallel_http_get = [self.get(url_0, self.__headers_ree),self.get(url_1, self.__headers_ree)]
-            loop = asyncio.get_event_loop()
-            results = loop.run_until_complete(asyncio.gather(*parallel_http_get))
-            max_data_length = max(len(results[0]['indicator']['values']),len(results[1]['indicator']['values']))
-            if len(results[0]['indicator']['values']) == max_data_length:
-                data_ref = 0
-            elif len(results[1]['indicator']['values']) == max_data_length:
-                data_ref = 1
-            else:
-                data_ref = 2
-            tmp_dates = []
-            k = 0
-            move_0 = 0
-            move_1 = 0
-            for i in range(len(results[data_ref]['indicator']['values'])):
-                if unidecode.unidecode(results[data_ref]['indicator']['values'][i]['geo_name']) == unidecode.unidecode(ID20TDzone):
-                    tmp_dates.append(results[data_ref]['indicator']['values'][i]['datetime'])
-            for i in range(len(results[data_ref]['indicator']['values'])):
-                try:
-                    if unidecode.unidecode(results[0]['indicator']['values'][i - move_0]['geo_name']) == unidecode.unidecode(ID20TDzone):
-                        if results[0]['indicator']['values'][i - move_0]['datetime'] != tmp_dates[k]:
-                            energy20TD.append(0)
-                            move_0 = move_0 + 1
-                        else:
-                            energy20TD.append(self.roundup(float(results[0]['indicator']['values'][i - move_0]['value'])/1000, 6))
-                except:
-                    pass
-                try:
-                    if unidecode.unidecode(results[1]['indicator']['values'][i - move_1]['geo_name']) == unidecode.unidecode(ID20TDzone):
-                        if results[1]['indicator']['values'][i - move_1]['datetime'] != tmp_dates[k]:
-                            period_mask.append(0)
-                            move_1 = move_1 + 1
-                        else:
-                            period_mask.append(int(results[1]['indicator']['values'][i - move_1]['value']))
-                except:
-                    pass
-                if len(energy20TD) > k and len(period_mask) > k:
-                    k = k + 1
-        return [0] * len(energy20TD), energy20TD, period_mask
-        
+        elif data_type == "period_mask":
+            url_0 = self.__ree_api_url.format(IDhourtype,start_date.strftime('%Y-%m-%d'),end_date.strftime('%Y-%m-%d'))
+
+        parallel_http_get = [self.get(url_0, self.__headers_ree)]
+        loop = asyncio.get_event_loop()
+        results = loop.run_until_complete(asyncio.gather(*parallel_http_get))
+        for i in range(len(results[0]['indicator']['values'])):
+            if unidecode.unidecode(results[0]['indicator']['values'][i]['geo_name']) == unidecode.unidecode(ID20TDzone):
+                if data_type == "period_mask":
+                    data.append(int(results[0]['indicator']['values'][i]['value']))
+                elif data_type == "energy_price":
+                    data.append(self.roundup(float(results[0]['indicator']['values'][i]['value'])/1000, 6))
+        return data
+
     def roundup(self, num, ndecimals):
         return float(round(Decimal(str(num)),ndecimals))
 
@@ -423,6 +436,9 @@ class Iber:
         #2024_2:
         pot_toll.append([0.776564, 22.401746])
         pot_tax.append([0.192288, 2.989915])
+        #2025:
+        pot_toll.append([0.776564, 22.958932])
+        pot_tax.append([0.255423, 3.971618])
         
         index_start = len(self.days_reference_pot_reduct)
         index_end = len(self.days_reference_pot_reduct)
@@ -446,123 +462,56 @@ class Iber:
         
         return power_toll_tax_cost_peak, power_toll_tax_cost_low
 
-                    
-    def calculate_invoice_PVPC(self, token, index, simulate_pot):
-        """Returns cost of same consumptions on pvpc . Index 0 means current consumption not yet invoiced. Bigger indexes returns costs of every already created invoice"""
-        start_date, end_date, consumption_kwh, real_reads, type_consumptions = self.get_consumption(index)
-        energy_fixed_price, energy_var_price, period_mask = self.get_ree_data(token,start_date,end_date)
+    def calculate_invoice(self, start_date, end_date, pot, p1, p2, p3, company_name):
+        """Returns cost of invoice for a determined company."""
         days_365, days_366 = self.day_leap_splitter(start_date,end_date)
+        vat_value = omiedata.get_iva(end_date.year,end_date.month)
+        et_value = 0.0511269632
 
-        p1 = []
-        p2 = []
-        p3 = []
-        energy_real_read = 0
-        for i in range(len(consumption_kwh)):
-            p1.append(int(period_mask[i] == 1) * consumption_kwh[i])
-            p2.append(int(period_mask[i] == 2) * consumption_kwh[i])
-            p3.append(int(period_mask[i] == 3) * consumption_kwh[i])
-            energy_real_read = energy_real_read + real_reads[i]*consumption_kwh[i]
+        if company_name == "PVPC 2.0TD":
+            energy_20td_price = self.get_ree_data(start_date,end_date, "energy_price")
+            avg_price_energy_20td_price_peak = 0
+            avg_price_energy_20td_price_low = 0
+            avg_price_energy_20td_price_superlow = 0
 
-        PERC_REAL_KWH = self.roundup(energy_real_read*100/sum(consumption_kwh),2)
-        PERC_ESTIM_KWH = self.roundup((sum(consumption_kwh)-energy_real_read)*100/sum(consumption_kwh),2)
-        PERC_REAL_H = self.roundup(sum(real_reads)*100/len(real_reads),2)
-        PERC_ESTIM_H = self.roundup((len(real_reads)-sum(real_reads))*100/len(real_reads),2)
-        try:
-            AVERAGE_KWH_H_REAL = self.roundup(energy_real_read/sum(real_reads),2)
-        except:
-            AVERAGE_KWH_H_REAL = 0
-        try:
-            AVERAGE_KWH_H_ESTIM = self.roundup((sum(consumption_kwh)-energy_real_read)/(len(real_reads)-sum(real_reads)),2)
-        except:
-             AVERAGE_KWH_H_ESTIM = 0
+            for i in range(len(energy_20td_price)):
+                avg_price_energy_20td_price_peak += self.roundup((p1[i]*energy_20td_price[i])/sum(p1),6)
+                avg_price_energy_20td_price_low += self.roundup((p2[i]*energy_20td_price[i])/sum(p2),6)
+                avg_price_energy_20td_price_superlow +=  self.roundup((p3[i]*energy_20td_price[i])/sum(p3),6)
 
-        if simulate_pot>0:
-            pot = simulate_pot
-        else:
-            pot = (self.contract()['potMaxima'])/1000
-
-        avg_price_energy_fixed_price = 0
-        avg_price_energy_var_price_peak = 0
-        avg_price_energy_var_price_low = 0
-        avg_price_energy_var_price_superlow = 0
-
-        for i in range(len(consumption_kwh)):
-            avg_price_energy_fixed_price = avg_price_energy_fixed_price + self.roundup((consumption_kwh[i]*energy_fixed_price[i])/sum(consumption_kwh),6)
-            avg_price_energy_var_price_peak = avg_price_energy_var_price_peak + self.roundup((p1[i]*energy_var_price[i])/sum(p1),6)
-            avg_price_energy_var_price_low = avg_price_energy_var_price_low + self.roundup((p2[i]*energy_var_price[i])/sum(p2),6)
-            try:
-                avg_price_energy_var_price_superlow = avg_price_energy_var_price_superlow + self.roundup((p3[i]*energy_var_price[i])/sum(p3),6)
-            except:
-                avg_price_energy_var_price_superlow = 0
-                
-        if start_date >= self.day_reference_20td:
-        #2.0TD CASE
-            vat_value = omiedata.get_iva(end_date.year,end_date.month)
-            et_value = 0.0511269632
             power_margin = self.roundup(pot * days_365 * 3.113/365, 2) + self.roundup(pot * days_366 * 3.113/366, 2)
             power_toll_tax_cost_peak, power_toll_tax_cost_low = self.tax_toll_calc(start_date, end_date, pot)
-            power_cost20TD = power_margin + power_toll_tax_cost_peak + power_toll_tax_cost_low
-            energy_cost_20TD_peak = self.roundup(avg_price_energy_var_price_peak*(self.roundup(sum(p1),2)),2)
-            energy_cost_20TD_low = self.roundup(avg_price_energy_var_price_low*(self.roundup(sum(p2),2)),2)
-            energy_cost_20TD_superlow = self.roundup(avg_price_energy_var_price_superlow*(self.roundup(sum(p3),2)),2)
-            energy_cost_20TD = energy_cost_20TD_peak + energy_cost_20TD_low + energy_cost_20TD_superlow
-            energy_and_power_cost_20TD = energy_cost_20TD + power_cost20TD
-            social_bonus_20TD = 5.394483 * 2.299047 * days_365/365 + 5.394483 * 2.299047 * days_366/366
-            energy_tax_20TD = self.roundup((energy_and_power_cost_20TD + social_bonus_20TD)*et_value,2)
-            equipment_cost = self.roundup(days_365 * (0.81*12/365) + days_366 * (0.81*12/366),2)
-            total_20TD =  energy_and_power_cost_20TD + energy_tax_20TD + equipment_cost + social_bonus_20TD
-            VAT_20TD = self.roundup(total_20TD*vat_value,2)
-            total_plus_vat_20TD = self.roundup(total_20TD + VAT_20TD,2)
-            
-            
-            #####################_____OTHER_COMPARISON (fill values)_____###############################
-            name_other = "ENERGIA NUFRI"
-            power_cost_other = self.roundup(pot * days_365 * 0.079977, 2) + self.roundup(pot * days_365 * 0.033339, 2)
-            power_cost_other = power_cost_other + self.roundup(pot * days_366 * 0.079977, 2) + self.roundup(pot * days_366 * 0.033339, 2)
-            energy_cost_other = self.roundup(self.roundup(sum(p1),0) * 0.162850 + self.roundup(sum(p2),0) * 0.106026 + self.roundup(sum(p3),0) * 0.076359,2)
-            social_bonus_other = 0.006364 * (days_365 + days_366)
-            
-            energy_and_power_cost_other = energy_cost_other + power_cost_other
-            energy_tax_other = self.roundup((energy_and_power_cost_other + social_bonus_other)*et_value,2)
-            equipment_cost_other = self.roundup(days_365 * (0.81*12/365) + days_366 * (0.81*12/366),2)
-            total_other = energy_and_power_cost_other + energy_tax_other + equipment_cost_other + social_bonus_other
-            VAT_other = self.roundup(total_other*vat_value,2)
-            total_plus_vat_other = self.roundup(total_other + VAT_other,2)
-            
-            
+            power_cost = power_margin + power_toll_tax_cost_peak + power_toll_tax_cost_low
+            energy_cost_20TD_peak = self.roundup(avg_price_energy_20td_price_peak*(self.roundup(sum(p1),2)),2)
+            energy_cost_20TD_low = self.roundup(avg_price_energy_20td_price_low*(self.roundup(sum(p2),2)),2)
+            energy_cost_20TD_superlow = self.roundup(avg_price_energy_20td_price_superlow*(self.roundup(sum(p3),2)),2)
+            energy_cost = energy_cost_20TD_peak + energy_cost_20TD_low + energy_cost_20TD_superlow
+        else:
 
-            name_other2 = "NATURGY TARIFA COMPROMISO"
-            power_cost_other2 = self.roundup(pot * days_365 * 0.047561, 2) + self.roundup(pot * days_365 * 0.054542, 2)
-            power_cost_other2 = power_cost_other2 + self.roundup(pot * days_366 * 0.047561, 2) + self.roundup(pot * days_366 * 0.054542, 2)
-            energy_cost_other2 = self.roundup(self.roundup(sum(p1),0) * 0.135334 + self.roundup(sum(p2),0) * 0.135334 + self.roundup(sum(p3),0) * 0.135334,2)
-            energy_and_power_cost_other2 = energy_cost_other2 + power_cost_other2
+            power_cost = self.roundup(pot * days_365 * self.COMPANY_DB[company_name][4], 2) + self.roundup(pot * days_365 * self.COMPANY_DB[company_name][3], 2)
+            power_cost += self.roundup(pot * days_366 * self.COMPANY_DB[company_name][4], 2) + self.roundup(pot * days_366 * self.COMPANY_DB[company_name][3], 2)
+            energy_cost = self.roundup(self.roundup(sum(p1),0) * self.COMPANY_DB[company_name][0] + self.roundup(sum(p2),0) * self.COMPANY_DB[company_name][1] + self.roundup(sum(p3),0) * self.COMPANY_DB[company_name][2],2)
 
-            social_bonus_other2 = 0.038455 * (days_365 + days_366)
-            energy_tax_other2 = self.roundup((energy_and_power_cost_other2 + social_bonus_other2)*et_value,2)
+        energy_and_power_cost = energy_cost + power_cost
+        social_bonus =  self.COMPANY_DB[company_name][5] * (days_365 + days_366)
+        energy_tax = self.roundup((energy_and_power_cost + social_bonus)*et_value,2)
+        equipment_cost = self.roundup(days_365 * (0.81*12/365) + days_366 * (0.81*12/366),2)
+        total = energy_and_power_cost + energy_tax + equipment_cost + social_bonus
+        VAT = self.roundup(total*vat_value,2)
+        total_plus_vat = self.roundup(total + VAT,2)
 
-            equipment_cost_other2 = self.roundup(days_365 * round((0.81*12/365),3) + days_366 * round((0.81*12/366),3),2)
-            total_other2 = energy_and_power_cost_other2 + energy_tax_other2 + equipment_cost_other2 + social_bonus_other2
-            VAT_other2 = self.roundup(total_other2*vat_value,2)
-            total_plus_vat_other2 = self.roundup(total_other2 + VAT_other2,2)
-            ############################################################################################
-            
-            
-            header = [type_consumptions, start_date.strftime('%d-%m-%Y'), end_date.strftime('%d-%m-%Y'), str(days_365 + days_366), str(pot), sum(p1), sum(p2), sum(p3), PERC_REAL_H, PERC_REAL_KWH, AVERAGE_KWH_H_REAL, PERC_ESTIM_H, PERC_ESTIM_KWH, AVERAGE_KWH_H_ESTIM]
-            c1 = ["PVPC 2.0TD", power_cost20TD, energy_cost_20TD, energy_tax_20TD, social_bonus_20TD, equipment_cost, vat_value, VAT_20TD, total_plus_vat_20TD]
-            c2 = [name_other, power_cost_other, energy_cost_other, energy_tax_other, social_bonus_other, equipment_cost_other, vat_value, VAT_other, total_plus_vat_other]
-            c3 = [name_other2, power_cost_other2, energy_cost_other2, energy_tax_other2, social_bonus_other2, equipment_cost_other2, vat_value, VAT_other2, total_plus_vat_other2]
-
-        return [header, c1, c2, c3]
+        company_calcs = [company_name, power_cost, energy_cost, energy_tax, social_bonus, equipment_cost, vat_value, VAT, total_plus_vat]
+        return company_calcs
 
     def print_comparison(self, header, company1, company2, company3):
-        #header = [type_consumptions, start_date, end_date, ndays, pot, p1, p2, p3, PERC_REAL_H, PERC_REAL_KWH, AVERAGE_KWH_H_REAL, PERC_ESTIM_H, PERC_ESTIM_KWH, AVERAGE_KWH_H_ESTIM]
+        #header = [type_consumptions, start_date, end_date, pot, p1, p2, p3, PERC_REAL_H, PERC_REAL_KWH, AVERAGE_KWH_H_REAL, PERC_ESTIM_H, PERC_ESTIM_KWH, AVERAGE_KWH_H_ESTIM]
         #companyX = [name, pot_cost, energy_cost, elec_tax, social_bonus, equip_cost, vat%, vat, total]
-        if header[0] == "0":
+        if header[0] == 0:
             print("[CONSUMO ACTUAL]")
         else:
-            print("[FACTURA " + header[0] + "]")
-        print("\nPERIODO: {0} - {1}\nDIAS: {2}\nPOTENCIA: {3}KW\nCONSUMOS: TOTAL = {4:.2f}kwh || PUNTA_P1 = {5:.2f}kwh VALLE_P2 = {6:.2f}kwh SUPERVALLE_P3 = {7:.2f}kwh\nLECTURA REAL: {8:.2f}%/h  {9:.2f}%/kwh  {10:.2f}kwh/h\nLECTURA ESTIMADA: {11:.2f}%/h  {12:.2f}%/kwh  {13:.2f}kwh/h \n".format(header[1],header[2],header[3],header[4],header[5]+header[6]+header[7],header[5],header[6],header[7],header[8],header[9],header[10],header[11],header[12], header[13]))
-        print('{:<30} {:<30} {:<30}'.format(company1[0] + " precio",company2[0] + " precio", company3[0] + " precio"))
+            print("[FACTURA {}]".format(header[0]))
+        print("\nPERIODO: {0} - {1}\nDIAS: {2}\nPOTENCIA: {3}KW\nCONSUMOS: TOTAL = {4:.2f}kwh || PUNTA_P1 = {5:.2f}kwh VALLE_P2 = {6:.2f}kwh SUPERVALLE_P3 = {7:.2f}kwh\nLECTURA REAL: {8:.2f}%/h  {9:.2f}%/kwh  {10:.2f}kwh/h\nLECTURA ESTIMADA: {11:.2f}%/h  {12:.2f}%/kwh  {13:.2f}kwh/h \n".format(header[1].strftime('%d-%m-%Y'),header[2].strftime('%d-%m-%Y'),(header[2]-header[1]).days + 1,header[3],sum(header[4])+sum(header[5])+sum(header[6]),sum(header[4]),sum(header[5]),sum(header[6]),header[7],header[8],header[9],header[10],header[11], header[12]))
+        print('{:<30} {:<30} {:<30}'.format(company1[0],company2[0], company3[0]))
         print("-----------------------------------------------------------------------------------------")
         print('{:<30} {:<30} {:<30}'.format("Coste potencia: {0:.2f}€".format(company1[1]), "Coste potencia: {0:.2f}€".format(company2[1]), "Coste potencia: {0:.2f}€".format(company3[1])))
         print('{:<30} {:<30} {:<30}'.format("Coste energía: {0:.2f}€".format(company1[2]), "Coste energía: {0:.2f}€".format(company2[2]), "Coste energía: {0:.2f}€".format(company3[2])))
@@ -618,7 +567,7 @@ class Iber:
             raise NoResponseException
         json_response = response.json()
         print("[POTENCIAS MAXIMAS PERIODO " + str(ayearago_month)+"-"+str(ayearago_year) + " A " + str(max_date_month)+"-"+str(max_date_year) + "]\n")
-        print("\t  VALLE,PUNTA\n")
+        print("\t   VALLE,PUNTA\n")
         try:
             for i in range(len(json_response["potMaxMens"])):
                 title = json_response["potMaxMens"][i][0]["name"][3:11] + " "
@@ -632,32 +581,38 @@ class Iber:
             print("No power data available\n\n")               
         return
 
-    def continuous_calc(self,ree_token):
-        simulate_pot = input("Introduza la potencia con la que desea simular el cálculo, o pulse ENTER si desea simular con la potencia actualmente contratada:")
-        if len(simulate_pot) == 0:
-            simulate_pot = 0
-        else:
-            simulate_pot = float(simulate_pot)
+    def print_all_company_calcs(self):
+        pot = input("Introduza la potencia con la que desea simular el cálculo, o pulse ENTER si desea simular con la potencia actualmente contratada:")
+        pot = (self.contract_details()['potMaxima'])/1000 if len(pot) == 0 else float(pot)
+        for i in range(0,13):
+            for c in self.COMPANY_DB.keys():
+                res = self.calculate_invoice(start_date, end_date, pot, p1, p2, p3, c)
+                print(c + " : " + str(res))
+
+    def compare3_last_year(self):
+        pot = input("Introduza la potencia con la que desea simular el cálculo, o pulse ENTER si desea simular con la potencia actualmente contratada:")
+        pot = (self.contract_details()['potMaxima'])/1000 if len(pot) == 0 else float(pot)
         totals = [0,0,0]
-        for i in range(0,27,1):
+        for i in range(0,13):
             try:
-                header, c1, c2, c3 = self.calculate_invoice_PVPC(ree_token,i,simulate_pot)
+                start_date, end_date, p1, p2, p3, energy_calcs = self.get_consumption_details(i)
+                c1 = self.calculate_invoice(start_date, end_date, pot, p1, p2, p3, "PVPC 2.0TD")
+                c2 = self.calculate_invoice(start_date, end_date, pot, p1, p2, p3, "Nufri CN023 3P")
+                c3 = self.calculate_invoice(start_date, end_date, pot, p1, p2, p3, "Naturgy Tarifa Compromiso")
+                header = [i, start_date, end_date, pot, p1, p2, p3] + energy_calcs
                 self.print_comparison(header, c1, c2, c3)
-                totals[0] = totals[0] + c1[8]
-                totals[1] = totals[1] + c2[8]
-                totals[2] = totals[2] + c3[8]
-                min_cost = min(totals)
-                if totals.index(min_cost) == 0:
-                    print("ACUMULADO: La tarifa (1) habría supuesto un ahorro de {0:.2f}€ frente a la tarifa (2) y de {1:.2f}€ frente a la tarifa (3). [{2:.2f}€, {3:.2f}€, {4:.2f}€]".format(totals[1]-totals[0],totals[2]-totals[0], totals[0], totals[1], totals[2]))
-                elif totals.index(min_cost) == 1:
-                    print("ACUMULADO: La tarifa (2) habría supuesto un ahorro de {0:.2f}€ frente a la tarifa (1) y de {1:.2f}€ frente a la tarifa (3). [{2:.2f}€, {3:.2f}€, {4:.2f}€]".format(totals[0]-totals[1],totals[2]-totals[1], totals[0], totals[1], totals[2]))
-                elif totals.index(min_cost) == 2:
-                    print("ACUMULADO: La tarifa (3) habría supuesto un ahorro de {0:.2f}€ frente a la tarifa (1) y de {1:.2f}€ frente a la tarifa (2). [{2:.2f}€, {3:.2f}€, {4:.2f}€]".format(totals[0]-totals[2],totals[1]-totals[2], totals[0], totals[1], totals[2]))
+
+                totals[0] += c1[8]
+                totals[1] += c2[8]
+                totals[2] += c3[8]
+                min_cost_index = totals.index(min(totals))
+                print("ACUMULADO: La tarifa {0} habría supuesto un ahorro de {1:.2f}€ frente a la tarifa {2} y de {3:.2f}€ frente a la tarifa {4}. [{5:.2f}€, {6:.2f}€, {7:.2f}€]".format(min_cost_index + 1, totals[(min_cost_index + 1) % 3]-totals[min_cost_index], (min_cost_index + 1)%3 + 1, totals[(min_cost_index + 2) % 3]-totals[min_cost_index], (min_cost_index + 2)%3 + 1, totals[0], totals[1], totals[2]))
                 print("\n##########  PULSE CUALQUIER TECLA PARA CONTINUAR O ESPACIO PARA ABANDONAR  ###########", end="")
                 input_char = getch()
                 print("\n")
                 if input_char == " ".encode() or input_char == " ":
                     break
-            except:
-                continue
+            except Exception:
+                traceback.print_exc()
+                break
         return
