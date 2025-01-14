@@ -89,31 +89,32 @@ class Iber:
 
     COMPANY_DB = {
         #e_high, e_mid, e_low, p_high, p_low, social_bonus
-        "PVPC 2.0TD":[0, 0, 0, 0.090411 ,0.046575, 0.0339785],
-        "ENERGYA VM":[0.099750 ,0.099750 ,0.099750 ,0.090411 ,0.046575, 0.038455],
-        "Endesa Conecta":[0.100848 ,0.100848 ,0.100848 ,0.103919 ,0.032048, 0.038455],
-        "TE A tu aire siempre":[0.101008 ,0.101008 ,0.101008 ,0.068343 ,0.068343, 0.038455],
-        "Plenitude (<5 kW)":[0.101673 ,0.101673 ,0.101673 ,0.073806 ,0.073806, 0.038455],
-        "Imagina":[0.105000 ,0.105000 ,0.105000 ,0.083000 ,0.045000, 0.038455],
-        "Visalia":[0.105938 ,0.105938 ,0.105938 ,0.080305 ,0.013576, 0.038455],
-        "Nufri CN023":[0.108125 ,0.108125 ,0.108125 ,0.079977 ,0.033339, 0.038455],
-        "Gana Energía":[0.113600 ,0.113600 ,0.113600 ,0.127406 ,0.049264, 0.038455],
-        "Naturgy por uso":[0.119166 ,0.119166 ,0.119166 ,0.108163 ,0.033392, 0.038455],
-        "Repsol":[0.119746 ,0.119746 ,0.119746 ,0.068219 ,0.068219, 0.038455],
-        "Octopus Relax":[0.123000 ,0.123000 ,0.123000 ,0.093000 ,0.025000, 0.038455],
-        "Iberdrola Online":[0.124900 ,0.124900 ,0.124900 ,0.095890 ,0.046548, 0.038455],
+        "PVPC 2.0TD":[0, 0, 0, 0.090411 ,0.046575, 0.012603],
+        "ENERGYA VM":[0.099750 ,0.099750 ,0.099750 ,0.090411 ,0.046575, 0],
+        "Clarity 1P":[0.140364 ,0.140364 ,0.140364 ,0.074079 , 0.008079, 0.012742],
+        "Endesa Conecta":[0.100848 ,0.100848 ,0.100848 ,0.103919 ,0.032048, 0.012742],
+        "TE A tu aire siempre":[0.101008 ,0.101008 ,0.101008 ,0.068343 ,0.068343, 0.012742],
+        "Plenitude (<5 kW)":[0.101673 ,0.101673 ,0.101673 ,0.073806 ,0.073806, 0],
+        "Imagina":[0.11000 ,0.11000 ,0.11000 ,0.087000 ,0.044000, 0.012742],
+        "Visalia":[0.104938 ,0.104938 ,0.104938 ,0.060274 ,0.060274, 0.006282],
+        "Nufri CN023":[0.109696 ,0.109696 ,0.109696 ,0.084193 ,0.032596, 0.006364],
+        "Gana Energía":[0.113600 ,0.113600 ,0.113600 ,0.127406 ,0.049264, 0.012742],
+        "Naturgy por uso":[0.119166 ,0.119166 ,0.119166 ,0.108163 ,0.033392, 0.0104],
+        "Repsol":[0.129900 ,0.129900 ,0.129900 ,0.068219 ,0.068219, 0.012742],
+        "Octopus Relax":[0.123000 ,0.123000 ,0.123000 ,0.093000 ,0.025000, 0.01],
+        "Iberdrola Online":[0.124900 ,0.124900 ,0.124900 ,0.095890 ,0.046548, 0.012742],
         "Lumisa":[0.125141 ,0.125141 ,0.125141 ,0.118638 ,0.024595, 0.038455],
-        "Endesa One":[0.133783 ,0.133783 ,0.133783 ,0.112138 ,0.040267, 0.038455],
-        "Endesa Libre":[0.139610 ,0.139610 ,0.139610 ,0.112138 ,0.040267, 0.038455],
-        "TE A tu aire programa tu ahorro 3P":[0.138688 ,0.097378 ,0.080896 ,0.068356 ,0.068329, 0.038455],
-        "ENERGYA VM 3P":[0.145800 ,0.118800 ,0.099810 ,0.079177 ,0.002729, 0.038455],
+        "Endesa One":[0.133783 ,0.133783 ,0.133783 ,0.112138 ,0.040267, 0.012742],
+        "Endesa Libre":[0.139610 ,0.139610 ,0.139610 ,0.112138 ,0.040267, 0.012742],
+        "TE A tu aire programa tu ahorro 3P":[0.138688 ,0.097378 ,0.080896 ,0.068356 ,0.068329, 0.012742],
+        "ENERGYA VM 3P":[0.145800 ,0.118800 ,0.099810 ,0.079177 ,0.002729, 0],
         "Nufri CN023 3P":[0.162850 ,0.106026 ,0.076359 ,0.079977 ,0.033339, 0.006364],
-        "Imagina 3P":[0.164000 ,0.105000 ,0.071000 ,0.095000 ,0.021000, 0.038455],
-        "Iberdrola Online 3P":[0.176576 ,0.113892 ,0.083904 ,0.086301 ,0.013014, 0.038455],
-        "Naturgy noche luz 3P":[0.185461 ,0.116414 ,0.082334 ,0.108163 ,0.033392, 0.038455],
-        "Naturgy Tarifa Compromiso":[0.135334 ,0.135334 ,0.135334 ,0.054542 ,0.047561, 0.038455],
-        "Octopus 3P":[0.195000 ,0.121000 ,0.083000 ,0.093000 ,0.025000, 0.038455],
-        "Endesa One 3P":[0.200113 ,0.123560 ,0.092084 ,0.110001 ,0.038130, 0.038455]}
+        "Imagina 3P":[0.180000 ,0.106000 ,0.072000 ,0.099000 ,0.020000, 0.012742],
+        "Iberdrola Online 3P":[0.176576 ,0.113892 ,0.083904 ,0.086301 ,0.013014, 0.012742],
+        "Naturgy noche luz 3P":[0.185461 ,0.116414 ,0.082334 ,0.108163 ,0.033392, 0.0104],
+        "Naturgy Tarifa Compromiso":[0.135334 ,0.135334 ,0.135334 ,0.054542 ,0.047561, 0.0104],
+        "Octopus 3P":[0.195000 ,0.121000 ,0.083000 ,0.093000 ,0.025000, 0.01],
+        "Endesa One 3P":[0.200113 ,0.123560 ,0.092084 ,0.110001 ,0.038130, 0.012742]}
     
 
     def __init__(self):
@@ -481,7 +482,7 @@ class Iber:
 
             power_margin = self.roundup(pot * days_365 * 3.113/365, 2) + self.roundup(pot * days_366 * 3.113/366, 2)
             power_toll_tax_cost_peak, power_toll_tax_cost_low = self.tax_toll_calc(start_date, end_date, pot)
-            power_cost = power_margin + power_toll_tax_cost_peak + power_toll_tax_cost_low
+            power_cost = self.roundup(power_margin + power_toll_tax_cost_peak + power_toll_tax_cost_low,2)
             energy_cost_20TD_peak = self.roundup(avg_price_energy_20td_price_peak*(self.roundup(sum(p1),2)),2)
             energy_cost_20TD_low = self.roundup(avg_price_energy_20td_price_low*(self.roundup(sum(p2),2)),2)
             energy_cost_20TD_superlow = self.roundup(avg_price_energy_20td_price_superlow*(self.roundup(sum(p3),2)),2)
@@ -490,10 +491,11 @@ class Iber:
 
             power_cost = self.roundup(pot * days_365 * self.COMPANY_DB[company_name][4], 2) + self.roundup(pot * days_365 * self.COMPANY_DB[company_name][3], 2)
             power_cost += self.roundup(pot * days_366 * self.COMPANY_DB[company_name][4], 2) + self.roundup(pot * days_366 * self.COMPANY_DB[company_name][3], 2)
+            power_cost = self.roundup(power_cost, 2)
             energy_cost = self.roundup(self.roundup(sum(p1),0) * self.COMPANY_DB[company_name][0] + self.roundup(sum(p2),0) * self.COMPANY_DB[company_name][1] + self.roundup(sum(p3),0) * self.COMPANY_DB[company_name][2],2)
 
         energy_and_power_cost = energy_cost + power_cost
-        social_bonus =  self.COMPANY_DB[company_name][5] * (days_365 + days_366)
+        social_bonus =  self.roundup(self.COMPANY_DB[company_name][5] * (days_365 + days_366),2)
         energy_tax = self.roundup((energy_and_power_cost + social_bonus)*et_value,2)
         equipment_cost = self.roundup(days_365 * (0.81*12/365) + days_366 * (0.81*12/366),2)
         total = energy_and_power_cost + energy_tax + equipment_cost + social_bonus
@@ -585,9 +587,31 @@ class Iber:
         pot = input("Introduza la potencia con la que desea simular el cálculo, o pulse ENTER si desea simular con la potencia actualmente contratada:")
         pot = (self.contract_details()['potMaxima'])/1000 if len(pot) == 0 else float(pot)
         for i in range(0,13):
-            for c in self.COMPANY_DB.keys():
-                res = self.calculate_invoice(start_date, end_date, pot, p1, p2, p3, c)
-                print(c + " : " + str(res))
+            try:
+                output = []
+                start_date, end_date, p1, p2, p3, energy_calcs = self.get_consumption_details(i)
+                for c in self.COMPANY_DB.keys():
+                    res = self.calculate_invoice(start_date, end_date, pot, p1, p2, p3, c)
+                    if len(output) == 0:
+                        output.append(res)
+                    else:
+                        for index in range(len(output)):
+                            if res[8] <= output[index][8]:
+                                output.insert(index, res)
+                                break
+                            if index == len(output) - 1:
+                                output.append(res)
+                for company in output:
+                    print("    " + str(company))
+                print("\n##########  PULSE CUALQUIER TECLA PARA CONTINUAR O ESPACIO PARA ABANDONAR  ###########", end="")
+                input_char = getch()
+                print("\n")
+                if input_char == " ".encode() or input_char == " ":
+                    break
+            except Exception:
+                traceback.print_exc()
+                break
+        return
 
     def compare3_last_year(self):
         pot = input("Introduza la potencia con la que desea simular el cálculo, o pulse ENTER si desea simular con la potencia actualmente contratada:")
