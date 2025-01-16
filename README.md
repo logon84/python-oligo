@@ -14,7 +14,7 @@ from oligo import Iber
 connection = Iber()
 connection.login("user", "password")
 
-connection.continous_calc(ree_token)
+connection.comparator()
 ```
 
 #### Consultar consumo actual:
@@ -25,7 +25,7 @@ from oligo import Iber
 connection = Iber()
 connection.login("user", "password")
 
-watt = connection.watthourmeter()
+watt = connection.measurement(['consumption'])
 print(watt)
 ```
 #### Consultar estado ICP interno:
