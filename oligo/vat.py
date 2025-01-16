@@ -4,7 +4,7 @@ from calendar import monthrange
 def get_iva(year,month):
     if year >= 2025:
         return 0.21
-    else:
+    elif year == 2024:
         values =[]
 
         #get previous month data to calculate actual month vat
@@ -18,7 +18,9 @@ def get_iva(year,month):
         data = requests.get(url.format(year,month,max_day))
         for n in range(3,len(data.text.split("\r\n")) - 2):
             values.append(float(data.text.split("\r\n")[n].split(";")[2].replace(",",".")))
-        average = sum(values)/len(values)
-        vat = 0.1 if average > 45 else 0.21 
-        return vat
-        
+        average = sum(values)/len(values) 
+        return 0.1 if average > 45 else 0.21
+    elif year == 2023 or year == 2022 and month >=  6:
+        return 0.05
+    elif year == 2021 and month >  6 or year == 2022 and month <  6:
+        return 0.10
