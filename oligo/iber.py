@@ -2,7 +2,7 @@ from requests import Session
 from datetime import datetime
 from io import StringIO
 from dateutil.relativedelta import relativedelta
-from . import omiedata
+from . import vat
 import calendar
 from decimal import Decimal
 import aiohttp
@@ -85,7 +85,6 @@ class Iber:
         'Host': "api.esios.ree.es",
         'Cookie': ""
     }
-    days_reference_pot_reduct = [datetime.strptime('15/09/2021', '%d/%m/%Y'),datetime.strptime('01/01/2022', '%d/%m/%Y'),datetime.strptime('31/03/2022', '%d/%m/%Y'),datetime.strptime('31/05/2024', '%d/%m/%Y'),datetime.strptime('01/01/2025', '%d/%m/%Y')]
 
     COMPANY_DB = {
         #e_high, e_mid, e_low, p_high, p_low, social_bonus
@@ -415,58 +414,9 @@ class Iber:
             days_365 = (end_date - start_date).days+1 - days_366
         return days_365, days_366
     
-    def tax_toll_calc(self, start_date, end_date, pot):
-        #pot_toll = [low, peak]
-        #pot_tax = [low, peak]
-        
-        pot_toll = []
-        pot_tax = []
-
-        #2021:
-        pot_toll.append([0.961130, 23.469833])
-        pot_tax.append([0.463229, 7.202827])
-        #2021_2:
-        pot_toll.append([0.961130, 23.469833])
-        pot_tax.append([0.018107, 0.281544])
-        #2022:
-        pot_toll.append([0.938890, 22.988256])
-        pot_tax.append([0.319666, 4.970533])
-        #2022_2:
-        pot_toll.append([0.938890, 22.988256])
-        pot_tax.append([0.204242, 3.175787])
-        #2024_2:
-        pot_toll.append([0.776564, 22.401746])
-        pot_tax.append([0.192288, 2.989915])
-        #2025:
-        pot_toll.append([0.776564, 22.958932])
-        pot_tax.append([0.255423, 3.971618])
-        
-        index_start = len(self.days_reference_pot_reduct)
-        index_end = len(self.days_reference_pot_reduct)
-        for date in self.days_reference_pot_reduct:
-            if date > start_date:
-                index_start = self.days_reference_pot_reduct.index(date)
-                break
-        for date in self.days_reference_pot_reduct:
-            if date > end_date:
-                index_end = self.days_reference_pot_reduct.index(date)
-                break
-        if index_start == index_end:
-            days_1 = (end_date - start_date).days + 1
-            days_2 = 0
-        else:
-            days_1 = (self.days_reference_pot_reduct[index_start] - start_date).days
-            days_2 = (end_date - self.days_reference_pot_reduct[index_start]).days + 1
-        
-        power_toll_tax_cost_peak = self.roundup(pot * days_1 * pot_toll[index_start][1]/(365 + int(calendar.isleap(start_date.year))), 2) + self.roundup(pot * days_1 * pot_tax[index_start][1]/(365 + int(calendar.isleap(start_date.year))), 2) + self.roundup(pot * days_2 * pot_toll[index_end][1]/(365 + int(calendar.isleap(end_date.year))), 2) + self.roundup(pot * days_2 * pot_tax[index_end][1]/(365 + int(calendar.isleap(end_date.year))), 2)
-        power_toll_tax_cost_low = self.roundup(pot * days_1 * pot_toll[index_start][0]/(365 + int(calendar.isleap(start_date.year))), 2) + self.roundup(pot * days_1 * pot_tax[index_start][0]/(365 + int(calendar.isleap(start_date.year))), 2) + self.roundup(pot * days_2 * pot_toll[index_end][0]/(365 + int(calendar.isleap(end_date.year))), 2) + self.roundup(pot * days_2 * pot_tax[index_end][0]/(365 + int(calendar.isleap(end_date.year))), 2)
-        
-        return power_toll_tax_cost_peak, power_toll_tax_cost_low
-
-    def calculate_invoice(self, start_date, end_date, pot, p1, p2, p3, company_name):
+    def calculate_invoice(self, start_date, end_date, pot, p1, p2, p3, vat_value, company_name):
         """Returns cost of invoice for a determined company."""
         days_365, days_366 = self.day_leap_splitter(start_date,end_date)
-        vat_value = omiedata.get_iva(end_date.year,end_date.month)
         et_value = 0.0511269632
 
         if company_name == "PVPC 2.0TD":
@@ -480,13 +430,17 @@ class Iber:
                 avg_price_energy_20td_price_low += self.roundup((p2[i]*energy_20td_price[i])/sum(p2),6)
                 avg_price_energy_20td_price_superlow +=  self.roundup((p3[i]*energy_20td_price[i])/sum(p3),6)
 
+            pot_toll= [0.776564, 22.958932]
+            pot_tax = [0.255423, 3.971618]
+            power_toll_tax_cost_low = self.roundup(pot * ((end_date - start_date).days + 1) * pot_toll[0]/(365 + int(calendar.isleap(start_date.year))), 2) + self.roundup(pot * ((end_date - start_date).days + 1) * pot_tax[0]/(365 + int(calendar.isleap(start_date.year))), 2)
+            power_toll_tax_cost_peak = self.roundup(pot * ((end_date - start_date).days + 1) * pot_toll[1]/(365 + int(calendar.isleap(start_date.year))), 2) + self.roundup(pot * ((end_date - start_date).days + 1) * pot_tax[1]/(365 + int(calendar.isleap(start_date.year))), 2)
             power_margin = self.roundup(pot * days_365 * 3.113/365, 2) + self.roundup(pot * days_366 * 3.113/366, 2)
-            power_toll_tax_cost_peak, power_toll_tax_cost_low = self.tax_toll_calc(start_date, end_date, pot)
+
             power_cost = self.roundup(power_margin + power_toll_tax_cost_peak + power_toll_tax_cost_low,2)
             energy_cost_20TD_peak = self.roundup(avg_price_energy_20td_price_peak*(self.roundup(sum(p1),2)),2)
             energy_cost_20TD_low = self.roundup(avg_price_energy_20td_price_low*(self.roundup(sum(p2),2)),2)
             energy_cost_20TD_superlow = self.roundup(avg_price_energy_20td_price_superlow*(self.roundup(sum(p3),2)),2)
-            energy_cost = energy_cost_20TD_peak + energy_cost_20TD_low + energy_cost_20TD_superlow
+            energy_cost = self.roundup(energy_cost_20TD_peak + energy_cost_20TD_low + energy_cost_20TD_superlow, 2)
         else:
 
             power_cost = self.roundup(pot * days_365 * self.COMPANY_DB[company_name][4], 2) + self.roundup(pot * days_365 * self.COMPANY_DB[company_name][3], 2)
@@ -505,7 +459,7 @@ class Iber:
         company_calcs = [company_name, power_cost, energy_cost, energy_tax, social_bonus, equipment_cost, vat_value, VAT, total_plus_vat]
         return company_calcs
 
-    def print_comparison(self, header, company1, company2, company3):
+    def print_3comparison(self, header, company1, company2, company3):
         #header = [type_consumptions, start_date, end_date, pot, p1, p2, p3, PERC_REAL_H, PERC_REAL_KWH, AVERAGE_KWH_H_REAL, PERC_ESTIM_H, PERC_ESTIM_KWH, AVERAGE_KWH_H_ESTIM]
         #companyX = [name, pot_cost, energy_cost, elec_tax, social_bonus, equip_cost, vat%, vat, total]
         if header[0] == 0:
@@ -583,58 +537,51 @@ class Iber:
             print("No power data available\n\n")               
         return
 
-    def print_all_company_calcs(self):
-        pot = input("Introduza la potencia con la que desea simular el cálculo, o pulse ENTER si desea simular con la potencia actualmente contratada:")
-        pot = (self.contract_details()['potMaxima'])/1000 if len(pot) == 0 else float(pot)
-        for i in range(0,13):
-            try:
-                output = []
-                start_date, end_date, p1, p2, p3, energy_calcs = self.get_consumption_details(i)
-                for c in self.COMPANY_DB.keys():
-                    res = self.calculate_invoice(start_date, end_date, pot, p1, p2, p3, c)
-                    if len(output) == 0:
-                        output.append(res)
-                    else:
-                        for index in range(len(output)):
-                            if res[8] <= output[index][8]:
-                                output.insert(index, res)
-                                break
-                            if index == len(output) - 1:
-                                output.append(res)
-                for company in output:
-                    print("    " + str(company))
-                print("\n##########  PULSE CUALQUIER TECLA PARA CONTINUAR O ESPACIO PARA ABANDONAR  ###########", end="")
-                input_char = getch()
-                print("\n")
-                if input_char == " ".encode() or input_char == " ":
-                    break
-            except Exception:
-                traceback.print_exc()
-                break
-        return
-
-    def compare3_last_year(self):
+    def comparator(self):
         pot = input("Introduza la potencia con la que desea simular el cálculo, o pulse ENTER si desea simular con la potencia actualmente contratada:")
         pot = (self.contract_details()['potMaxima'])/1000 if len(pot) == 0 else float(pot)
         totals = [0,0,0]
+        mode = 0
         for i in range(0,13):
             try:
                 start_date, end_date, p1, p2, p3, energy_calcs = self.get_consumption_details(i)
-                c1 = self.calculate_invoice(start_date, end_date, pot, p1, p2, p3, "PVPC 2.0TD")
-                c2 = self.calculate_invoice(start_date, end_date, pot, p1, p2, p3, "Nufri CN023 3P")
-                c3 = self.calculate_invoice(start_date, end_date, pot, p1, p2, p3, "Naturgy Tarifa Compromiso")
-                header = [i, start_date, end_date, pot, p1, p2, p3] + energy_calcs
-                self.print_comparison(header, c1, c2, c3)
+                vat_value = vat.get_iva(end_date.year,end_date.month)
+                input_char = "M"
+                while input_char.upper() in ["M", "M".encode()]:
+                    if mode == 0: #comparison of 3 with pretty print
+                        c1 = self.calculate_invoice(start_date, end_date, pot, p1, p2, p3, vat_value, "PVPC 2.0TD")
+                        c2 = self.calculate_invoice(start_date, end_date, pot, p1, p2, p3, vat_value, "Nufri CN023 3P")
+                        c3 = self.calculate_invoice(start_date, end_date, pot, p1, p2, p3, vat_value, "Naturgy Tarifa Compromiso")
+                        header = [i, start_date, end_date, pot, p1, p2, p3] + energy_calcs
+                        self.print_3comparison(header, c1, c2, c3)
 
-                totals[0] += c1[8]
-                totals[1] += c2[8]
-                totals[2] += c3[8]
-                min_cost_index = totals.index(min(totals))
-                print("ACUMULADO: La tarifa {0} habría supuesto un ahorro de {1:.2f}€ frente a la tarifa {2} y de {3:.2f}€ frente a la tarifa {4}. [{5:.2f}€, {6:.2f}€, {7:.2f}€]".format(min_cost_index + 1, totals[(min_cost_index + 1) % 3]-totals[min_cost_index], (min_cost_index + 1)%3 + 1, totals[(min_cost_index + 2) % 3]-totals[min_cost_index], (min_cost_index + 2)%3 + 1, totals[0], totals[1], totals[2]))
-                print("\n##########  PULSE CUALQUIER TECLA PARA CONTINUAR O ESPACIO PARA ABANDONAR  ###########", end="")
-                input_char = getch()
-                print("\n")
-                if input_char == " ".encode() or input_char == " ":
+                        totals[0] += c1[8]
+                        totals[1] += c2[8]
+                        totals[2] += c3[8]
+                        min_cost_index = totals.index(min(totals))
+                        print("ACUMULADO: La tarifa {0} habría supuesto un ahorro de {1:.2f}€ frente a la tarifa {2} y de {3:.2f}€ frente a la tarifa {4}. [{5:.2f}€, {6:.2f}€, {7:.2f}€]".format(min_cost_index + 1, totals[(min_cost_index + 1) % 3]-totals[min_cost_index], (min_cost_index + 1)%3 + 1, totals[(min_cost_index + 2) % 3]-totals[min_cost_index], (min_cost_index + 2)%3 + 1, totals[0], totals[1], totals[2]))
+                    else: #all comparison
+                        output = []
+                        print("    PERIODO: {} - {}".format(start_date.strftime('%d-%m-%Y'),end_date.strftime('%d-%m-%Y')))
+                        for c in self.COMPANY_DB.keys():
+                            res = self.calculate_invoice(start_date, end_date, pot, p1, p2, p3, vat_value, c)
+                            if len(output) == 0:
+                                output.append(res)
+                            else:
+                                for index in range(len(output)):
+                                    if res[8] <= output[index][8]:
+                                        output.insert(index, res)
+                                        break
+                                    if index == len(output) - 1:
+                                        output.append(res)
+                        for company in output:
+                            print("    " + str(company))
+                    print("\n##########  PULSE (M)CAMBIAR MODO. (ESPACIO)CERRAR. (OTRA TECLA)CONTINUAR  ###########", end="")
+                    input_char = getch()
+                    print("\n")
+                    if input_char.upper() in ["M", "M".encode()]:
+                        mode = not(mode)
+                if input_char in [" ", " ".encode()]:
                     break
             except Exception:
                 traceback.print_exc()
