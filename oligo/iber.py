@@ -572,7 +572,7 @@ class Iber:
                                     if res[8] >= output[index][8]:
                                         output.insert(index, res)
                                         break
-                                    if index == len(output) - 1:
+                                    elif index == len(output) - 1:
                                         output.append(res)
                         for company in output:
                             print("    " + str(company))
