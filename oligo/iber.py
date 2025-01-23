@@ -95,7 +95,7 @@ class Iber:
         "TE A tu aire siempre":[0.101008 ,0.101008 ,0.101008 ,0.068343 ,0.068343, 0.012742],
         "Plenitude (<5 kW)":[0.101673 ,0.101673 ,0.101673 ,0.073806 ,0.073806, 0],
         "Imagina":[0.11000 ,0.11000 ,0.11000 ,0.087000 ,0.044000, 0.012742],
-        "Visalia":[0.104938 ,0.104938 ,0.104938 ,0.060274 ,0.060274, 0.006282],
+        "Visalia":[0.104938 ,0.104938 ,0.104938 ,0.060274 ,0.060274, 0.060274],
         "Nufri CN023":[0.109696 ,0.109696 ,0.109696 ,0.084193 ,0.032596, 0.006364],
         "Gana Energía":[0.113600 ,0.113600 ,0.113600 ,0.127406 ,0.049264, 0.012742],
         "Naturgy por uso":[0.119166 ,0.119166 ,0.119166 ,0.108163 ,0.033392, 0.0104],
@@ -541,9 +541,15 @@ class Iber:
         pot = input("Introduza la potencia con la que desea simular el cálculo, o pulse ENTER si desea simular con la potencia actualmente contratada:")
         pot = (self.contract_details()['potMaxima'])/1000 if len(pot) == 0 else float(pot)
         totals = [0,0,0]
+        prices1 = []
+        prices2 = []
+        prices3 = []
         mode = 0
         for i in range(0,13):
             try:
+                prices1.append(0)
+                prices2.append(0)
+                prices3.append(0)
                 start_date, end_date, p1, p2, p3, energy_calcs = self.get_consumption_details(i)
                 vat_value = vat.get_iva(end_date.year,end_date.month)
                 input_char = "M"
@@ -555,9 +561,12 @@ class Iber:
                         header = [i, start_date, end_date, pot, p1, p2, p3] + energy_calcs
                         self.print_3comparison(header, c1, c2, c3)
 
-                        totals[0] += c1[8]
-                        totals[1] += c2[8]
-                        totals[2] += c3[8]
+                        prices1[len(prices1)-1] = c1[8]
+                        prices2[len(prices2)-1] = c2[8]
+                        prices3[len(prices3)-1] = c3[8]
+                        totals[0] = sum(prices1)
+                        totals[1] = sum(prices2)
+                        totals[2] = sum(prices3)
                         min_cost_index = totals.index(min(totals))
                         print("ACUMULADO: La tarifa {0} habría supuesto un ahorro de {1:.2f}€ frente a la tarifa {2} y de {3:.2f}€ frente a la tarifa {4}. [{5:.2f}€, {6:.2f}€, {7:.2f}€]".format(min_cost_index + 1, totals[(min_cost_index + 1) % 3]-totals[min_cost_index], (min_cost_index + 1)%3 + 1, totals[(min_cost_index + 2) % 3]-totals[min_cost_index], (min_cost_index + 2)%3 + 1, totals[0], totals[1], totals[2]))
                     else: #all comparison
