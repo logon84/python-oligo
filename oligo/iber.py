@@ -88,32 +88,33 @@ class Iber:
 
     COMPANY_DB = {
         #e_high, e_mid, e_low, p_high, p_low, social_bonus
-        "PVPC 2.0TD":[0, 0, 0, 0.090411 ,0.046575, 0.012603],
+        "PVPC 2.0TD":[0, 0, 0, 0.090411 ,0.046575, 0.012742],
+        "TE A tu aire siempre SIN":[0.107,0.107,0.107, 0.082055, 0.082055, 0.012742],
         "Plenitude (<5 kW)":[0.108981,0.108981,0.108981,0.073806,0.073806, 0],
         "Visalia":[0.109959,0.109959,0.109959,0.068493,0.068493, 0.006282],
         "Imagina":[0.110000,0.110000,0.110000,0.087000,0.044000, 0.012742],
-        "Endesa Conecta":[0.110850,0.110850,0.110850,0.103919,0.032048, 0.012742],
         "Gana Energía":[0.113600,0.113600,0.113600,0.127406,0.049264,0.012742],
-        "TE A tu aire siempre":[0.119026,0.119026,0.119026, 0.068343, 0.068343, 0.012742],
+        "TE A tu aire siempre CON":[0.119026,0.119026,0.119026, 0.068356, 0.068329, 0.012742],
         "Naturgy por uso":[0.119166,0.119166,0.119166,0.108163,0.033392, 0.0104],
+        "Endesa Conecta":[0.121000,0.121000,0.121000,0.103919,0.032048, 0.012742],
         "Nufri CN023":[0.121343,0.121343,0.121343,0.084193,0.032596, 0.012742],
         "ENERGYA VM":[0.122400,0.122400,0.122400,0.093150,0.046576, 0],
         "Octopus Relax":[0.123000,0.123000,0.123000,0.093000,0.025000, 0.01],
-        "Iberdrola Online":[0.124900,0.124900,0.124900,0.095890,0.046548, 0.012742],
         "Lumisa":[0.125141,0.125141,0.125141,0.118638,0.024595, 0.038455],
         "Repsol":[0.129900,0.129900,0.129900,0.068219,0.068219, 0.012742],
-        "Endesa One":[0.134250,0.134250,0.134250,0.112138,0.040267, 0.012742],
+        "Iberdrola Online":[0.129900,0.129900,0.129900,0.095890,0.046548, 0.012742],
+        "Endesa One":[0.151000,0.151000,0.151000,0.112138,0.040267, 0.012742],
         "Naturgy Tarifa Compromiso":[0.140515 ,0.140515 ,0.140515 ,0.053005 ,0.044744, 0.012742],
-        "Endesa Libre":[0.144250,0.1442500,0.144250,0.112138,0.040267, 0.012742],
-        "Clarity 1P":[0.140364 ,0.140364 ,0.140364 ,0.074079 , 0.008079, 0.012742],
+        "Endesa Libre":[0.157780,0.157780,0.157780,0.112138,0.040267, 0.012742],
+        "Clarity 1P":[0.164523 ,0.164523 ,0.164523 ,0.084766 , 0.040317, 0.012742],
         "TE A tu aire programa tu ahorro 3P":[0.175678,0.1161,0.087724,0.068356,0.068329, 0.012742],
         "Nufri CN023 3P":[0.174327, 0.10786, 0.077799, 0.08351692, 0.03336114, 0.012742],
-        "Iberdrola Online 3P":[0.176576,0.113892,0.083904,0.086301,0.013014, 0.012742],
-        "Imagina 3P":[0.180000,0.106000,0.072000,0.099000,0.020000, 0.012742],
+        "Iberdrola Online 3P":[0.183576,0.130892,0.098904,0.086301,0.013014, 0.012742],
         "Naturgy noche luz 3P":[0.185461,0.116414,0.082334,0.108163,0.033392, 0.0104],
         "Octopus Solar":[0.193000,0.118000,0.080000,0.093000,0.025000, 0.01],
+        "Imagina 3P":[0.199000,0.125000,0.090000,0.099000,0.020000, 0.012742],
         "ENERGYA VM 3P":[0.199000,0.149000,0.099000,0.082192,0.002739, 0],
-        "Endesa One 3P":[0.200113,0.123560,0.092084,0.110001,0.038130, 0.012742]}
+        "Endesa One 3P":[0.218860, 0.142310 , 0.110834, 0.112138, 0.040267, 0.012742]}
     
 
     def __init__(self):
@@ -164,21 +165,27 @@ class Iber:
     def measurement(self):
         """Returns a measurement from the powermeter."""
         self.__check_session()
-        response = self.__session.request("GET", self.__watthourmeter_url, headers=self.__headers_i_de)
-        if response.status_code != 200:
-            raise ResponseException(response.status_code)
-        if not response.text:
-            raise NoResponseException
-        json_response = response.json()
+        json_response = "{}"
+        retry = 0
+        while retry < 4 and str(json_response) == "{}":
+            retry = retry + 1
+            if retry > 1:
+                print("Retrying....")
+            response = self.__session.request("GET", self.__watthourmeter_url, headers=self.__headers_i_de)
+            if response.status_code != 200:
+                raise ResponseException(response.status_code)
+            if not response.text:
+                raise NoResponseException
+            json_response = response.json()
         if 'codSolicitudTGT' in json_response.keys():
             return {
                 "id": json_response['codSolicitudTGT'],
                 "meter": json_response["valLecturaContador"],
                 "consumption": json_response['valMagnitud'] + "w",
                 "icp": json_response['valInterruptor']
-            }
+                }
         else:
-            return { "raw_response": json_response }
+            return "Couldn't get proper read"
 
     def current_kilowatt_hour_counter_read(self):
         """Returns the current read of the electricity meter."""
@@ -432,8 +439,8 @@ class Iber:
                 avg_price_energy_20td_price_low += self.roundup((p2[i]*energy_20td_price[i])/sum(p2),6)
                 avg_price_energy_20td_price_superlow +=  self.roundup((p3[i]*energy_20td_price[i])/sum(p3),6)
 
-            pot_toll= [0.776564, 22.958932]
-            pot_tax = [0.255423, 3.971618]
+            pot_toll= [22.958932, 0.442165]
+            pot_tax = [3.971618, 0.255423]
             power_toll_tax_cost_low = self.roundup(pot * ((end_date - start_date).days + 1) * pot_toll[0]/(365 + int(calendar.isleap(start_date.year))), 2) + self.roundup(pot * ((end_date - start_date).days + 1) * pot_tax[0]/(365 + int(calendar.isleap(start_date.year))), 2)
             power_toll_tax_cost_peak = self.roundup(pot * ((end_date - start_date).days + 1) * pot_toll[1]/(365 + int(calendar.isleap(start_date.year))), 2) + self.roundup(pot * ((end_date - start_date).days + 1) * pot_tax[1]/(365 + int(calendar.isleap(start_date.year))), 2)
             power_margin = self.roundup(pot * days_365 * 3.113/365, 2) + self.roundup(pot * days_366 * 3.113/366, 2)
