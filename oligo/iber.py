@@ -89,32 +89,30 @@ class Iber:
     COMPANY_DB = {
         #e_high, e_mid, e_low, p_high, p_low, social_bonus
         "PVPC 2.0TD":[0, 0, 0, 0.090411 ,0.046575, 0.012742],
-        "TE A tu aire siempre SIN":[0.107,0.107,0.107, 0.082055, 0.082055, 0.012742],
-        "Plenitude (<5 kW)":[0.108981,0.108981,0.108981,0.073806,0.073806, 0],
+        "Plenitude (<5 kW)":[0.099092,0.099092,0.099092,0.073806,0.073806, 0],
         "Visalia":[0.109959,0.109959,0.109959,0.068493,0.068493, 0.006282],
         "Gana Energía":[0.113600,0.113600,0.113600,0.127406,0.049264,0.012742],
-        "TE A tu aire siempre CON":[0.119026,0.119026,0.119026, 0.068356, 0.068329, 0.012742],
+        "TE A tu aire siempre":[0.119000,0.119000,0.119000, 0.071904, 0.071904, 0.012742],
         "Naturgy por uso":[0.119166,0.119166,0.119166,0.108163,0.033392, 0.0104],
         "Imagina":[0.121000,0.121000,0.121000,0.103000,0.048000, 0.012742],
-        "Endesa Conecta":[0.121000,0.121000,0.121000,0.103919,0.032048, 0.012742],
         "Nufri CN023":[0.121343,0.121343,0.121343,0.084193,0.032596, 0.012742],
-        "ENERGYA VM":[0.122400,0.122400,0.122400,0.093150,0.046576, 0],
         "Octopus Relax":[0.125000,0.125000,0.125000,0.095000,0.027000, 0.01],
         "Lumisa":[0.125141,0.125141,0.125141,0.118638,0.024595, 0.038455],
+        "Endesa One":[0.129000,0.129000,0.129000,0.112138,0.040267, 0.012742],
+        "ENERGYA VM":[0.129625,0.129625,0.129625,0.093150,0.046576, 0],
         "Repsol":[0.129900,0.129900,0.129900,0.068219,0.068219, 0.012742],
-        "Iberdrola Online":[0.129900,0.129900,0.129900,0.095890,0.046548, 0.012742],
-        "Endesa One":[0.151000,0.151000,0.151000,0.112138,0.040267, 0.012742],
+        "Iberdrola Online":[0.132000,0.132000,0.132000,0.095890,0.046548, 0.012742],
         "Naturgy Tarifa Compromiso":[0.140515 ,0.140515 ,0.140515 ,0.053005 ,0.044744, 0.012742],
-        "Endesa Libre":[0.157780,0.157780,0.157780,0.112138,0.040267, 0.012742],
+        "Endesa Libre":[0.153370,0.153370,0.153370,0.112138,0.040267, 0.012742],
         "Clarity 1P":[0.164523 ,0.164523 ,0.164523 ,0.084766 , 0.040317, 0.012742],
-        "TE A tu aire programa tu ahorro 3P":[0.175678,0.1161,0.087724,0.068356,0.068329, 0.012742],
-        "Nufri CN023 3P":[0.174327, 0.10786, 0.077799, 0.08351692, 0.03336114, 0.012742],
+        "Nufri CN023 3P":[0.189851, 0.113305, 0.081819, 0.08940711, 0.03461422, 0.012742],
         "Iberdrola Online 3P":[0.183576,0.130892,0.098904,0.086301,0.013014, 0.012742],
         "Naturgy noche luz 3P":[0.185461,0.116414,0.082334,0.108163,0.033392, 0.0104],
+        "TE A tu aire programa tu ahorro 3P":[0.188041,0.116220,0.080428,0.071918,0.071890, 0.012742],
+        "ENERGYA VM 3P":[0.195500,0.122400,0.092650,0.082192,0.002739, 0],
+        "Endesa One 3P":[0.196860,0.120310,0.088834,0.112138,0.040267, 0.012742],
         "Octopus Solar":[0.197000,0.122000,0.084000,0.095000,0.027000, 0.01],
-        "Imagina 3P":[0.199000,0.125000,0.090000,0.099000,0.020000, 0.012742],
-        "ENERGYA VM 3P":[0.199000,0.149000,0.099000,0.082192,0.002739, 0],
-        "Endesa One 3P":[0.218860, 0.142310 , 0.110834, 0.112138, 0.040267, 0.012742]}
+        "Imagina 3P":[0.199000,0.125000,0.090000,0.099000,0.020000, 0.012742]}
     
 
     def __init__(self):
@@ -328,10 +326,8 @@ class Iber:
             end_date = self.get_last_day_with_recorded_data()
             if end_date <= datetime.strptime(last_invoice['fechaHasta'], '%d/%m/%Y'):
             #no hourly consumption since last invoice
-                end_date = self.today
-                kwh = [0 for i in range(24 * (end_date - start_date).days + 1)]
-                real_reads_mask= [0 for i in range(len(kwh))]
-                energy_reads = [kwh, real_reads_mask]
+                end_date = start_date
+                return start_date, end_date, 0, 0, 0, [0, 0, 0, 0, 0, 0]			
             else:
                 energy_reads = self.get_hourly_consumption(start_date,end_date)
         else:
@@ -564,47 +560,48 @@ class Iber:
                     prices2.append(0)
                     prices3.append(0)
                     start_date, end_date, p1, p2, p3, energy_calcs = self.get_consumption_details(i)
-                    vat_value = vat.get_iva(end_date.year,end_date.month)
-                    input_char = "M"
-                    while input_char.upper() in ["M", "M".encode()]:
-                        if mode == 0: #comparison of 3 with pretty print
-                            c1 = self.calculate_invoice(start_date, end_date, pot, p1, p2, p3, vat_value, "PVPC 2.0TD")
-                            c2 = self.calculate_invoice(start_date, end_date, pot, p1, p2, p3, vat_value, "Nufri CN023 3P")
-                            c3 = self.calculate_invoice(start_date, end_date, pot, p1, p2, p3, vat_value, "Naturgy Tarifa Compromiso")
-                            header = [i, start_date, end_date, pot, p1, p2, p3] + energy_calcs
-                            self.print_3comparison(header, c1, c2, c3)
+                    if start_date != end_date:
+                        vat_value = vat.get_iva(end_date.year,end_date.month)
+                        input_char = "M"
+                        while input_char.upper() in ["M", "M".encode()]:
+                            if mode == 0: #comparison of 3 with pretty print
+                                c1 = self.calculate_invoice(start_date, end_date, pot, p1, p2, p3, vat_value, "PVPC 2.0TD")
+                                c2 = self.calculate_invoice(start_date, end_date, pot, p1, p2, p3, vat_value, "Nufri CN023 3P")
+                                c3 = self.calculate_invoice(start_date, end_date, pot, p1, p2, p3, vat_value, "Naturgy Tarifa Compromiso")
+                                header = [i, start_date, end_date, pot, p1, p2, p3] + energy_calcs
+                                self.print_3comparison(header, c1, c2, c3)
 
-                            prices1[len(prices1)-1] = c1[8]
-                            prices2[len(prices2)-1] = c2[8]
-                            prices3[len(prices3)-1] = c3[8]
-                            totals[0] = sum(prices1)
-                            totals[1] = sum(prices2)
-                            totals[2] = sum(prices3)
-                            min_cost_index = totals.index(min(totals))
-                            print("ACUMULADO: La tarifa {0} habría supuesto un ahorro de {1:.2f}€ frente a la tarifa {2} y de {3:.2f}€ frente a la tarifa {4}. [{5:.2f}€, {6:.2f}€, {7:.2f}€]".format(min_cost_index + 1, totals[(min_cost_index + 1) % 3]-totals[min_cost_index], (min_cost_index + 1)%3 + 1, totals[(min_cost_index + 2) % 3]-totals[min_cost_index], (min_cost_index + 2)%3 + 1, totals[0], totals[1], totals[2]))
-                        else: #all comparison
-                            output = []
-                            print("    PERIODO: {} - {}".format(start_date.strftime('%d-%m-%Y'),end_date.strftime('%d-%m-%Y')))
-                            for c in self.COMPANY_DB.keys():
-                                res = self.calculate_invoice(start_date, end_date, pot, p1, p2, p3, vat_value, c)
-                                if len(output) == 0:
-                                    output.append(res)
-                                else:
-                                    for index in range(len(output)):
-                                        if res[8] >= output[index][8]:
-                                            output.insert(index, res)
-                                            break
-                                        elif index == len(output) - 1:
-                                            output.append(res)
-                            for company in output:
-                                print("    " + str(company))
-                        print("\n##########  PULSE (M)CAMBIAR MODO. (ESPACIO)CERRAR. (OTRA TECLA)CONTINUAR  ###########", end="")
-                        input_char = getch()
-                        print("\n")
-                        if input_char.upper() in ["M", "M".encode()]:
-                            mode = not(mode)
-                    if input_char in [" ", " ".encode()]:
-                        break
+                                prices1[len(prices1)-1] = c1[8]
+                                prices2[len(prices2)-1] = c2[8]
+                                prices3[len(prices3)-1] = c3[8]
+                                totals[0] = sum(prices1)
+                                totals[1] = sum(prices2)
+                                totals[2] = sum(prices3)
+                                min_cost_index = totals.index(min(totals))
+                                print("ACUMULADO: La tarifa {0} habría supuesto un ahorro de {1:.2f}€ frente a la tarifa {2} y de {3:.2f}€ frente a la tarifa {4}. [{5:.2f}€, {6:.2f}€, {7:.2f}€]".format(min_cost_index + 1, totals[(min_cost_index + 1) % 3]-totals[min_cost_index], (min_cost_index + 1)%3 + 1, totals[(min_cost_index + 2) % 3]-totals[min_cost_index], (min_cost_index + 2)%3 + 1, totals[0], totals[1], totals[2]))
+                            else: #all comparison
+                                output = []
+                                print("    PERIODO: {} - {}".format(start_date.strftime('%d-%m-%Y'),end_date.strftime('%d-%m-%Y')))
+                                for c in self.COMPANY_DB.keys():
+                                    res = self.calculate_invoice(start_date, end_date, pot, p1, p2, p3, vat_value, c)
+                                    if len(output) == 0:
+                                        output.append(res)
+                                    else:
+                                        for index in range(len(output)):
+                                            if res[8] >= output[index][8]:
+                                                output.insert(index, res)
+                                                break
+                                            elif index == len(output) - 1:
+                                                output.append(res)
+                                for company in output:
+                                    print("    " + str(company))
+                            print("\n##########  PULSE (M)CAMBIAR MODO. (ESPACIO)CERRAR. (OTRA TECLA)CONTINUAR  ###########", end="")
+                            input_char = getch()
+                            print("\n")
+                            if input_char.upper() in ["M", "M".encode()]:
+                                mode = not(mode)
+                        if input_char in [" ", " ".encode()]:
+                            break
                 except Exception:
                     traceback.print_exc()
                     break
