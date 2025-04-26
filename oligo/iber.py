@@ -45,6 +45,8 @@ class SessionException(Exception):
 class NoResponseException(Exception):
     pass
 
+class NoIDEdataException(Exception):
+    pass
 
 class SelectContractException(Exception):
     pass
@@ -90,29 +92,27 @@ class Iber:
         #e_high, e_mid, e_low, p_high, p_low, social_bonus
         "PVPC 2.0TD":[0, 0, 0, 0.090411 ,0.046575, 0.012742],
         "Plenitude (<5 kW)":[0.099092,0.099092,0.099092,0.073806,0.073806, 0],
-        "Visalia":[0.109959,0.109959,0.109959,0.068493,0.068493, 0.006282],
+        "ENERGYA VM":[0.099125,0.099125,0.099125,0.093150,0.046576, 0],
+        "Visalia":[0.108995,0.108995,0.108995,0.060273,0.060273, 0.006282],
+        "Imagina":[0.113000,0.113000,0.113000,0.087000,0.044000, 0.012742],
         "Gana Energía":[0.113600,0.113600,0.113600,0.127406,0.049264,0.012742],
+        "Nufri CN023":[0.115332,0.115332,0.115332,0.084193,0.032596, 0.012742],
+        "Octopus Relax":[0.118000,0.118000,0.118000,0.095000,0.027000, 0.01],
         "TE A tu aire siempre":[0.119000,0.119000,0.119000, 0.071904, 0.071904, 0.012742],
         "Naturgy por uso":[0.119166,0.119166,0.119166,0.108163,0.033392, 0.0104],
-        "Imagina":[0.121000,0.121000,0.121000,0.103000,0.048000, 0.012742],
-        "Nufri CN023":[0.121343,0.121343,0.121343,0.084193,0.032596, 0.012742],
-        "Octopus Relax":[0.125000,0.125000,0.125000,0.095000,0.027000, 0.01],
-        "Lumisa":[0.125141,0.125141,0.125141,0.118638,0.024595, 0.038455],
-        "Endesa One":[0.129000,0.129000,0.129000,0.112138,0.040267, 0.012742],
-        "ENERGYA VM":[0.129625,0.129625,0.129625,0.093150,0.046576, 0],
+        "Iberdrola Online":[0.124900,0.124900,0.124900,0.095890,0.046548, 0.012742],
+        "Endesa One":[0.126000,0.126000,0.126000,0.112138,0.040267, 0.012742],
         "Repsol":[0.129900,0.129900,0.129900,0.068219,0.068219, 0.012742],
-        "Iberdrola Online":[0.132000,0.132000,0.132000,0.095890,0.046548, 0.012742],
         "Naturgy Tarifa Compromiso":[0.140515 ,0.140515 ,0.140515 ,0.053005 ,0.044744, 0.012742],
-        "Endesa Libre":[0.153370,0.153370,0.153370,0.112138,0.040267, 0.012742],
-        "Clarity 1P":[0.164523 ,0.164523 ,0.164523 ,0.084766 , 0.040317, 0.012742],
-        "Nufri CN023 3P":[0.189851, 0.113305, 0.081819, 0.08940711, 0.03461422, 0.012742],
-        "Iberdrola Online 3P":[0.183576,0.130892,0.098904,0.086301,0.013014, 0.012742],
+        "Endesa Libre":[0.147500,0.147500,0.147500,0.112138,0.040267, 0.012742],
+        "Nufri CN023 3P":[0.176079,0.106312,0.074711,0.084193,0.032596, 0.012742],
+        "Iberdrola Online 3P":[0.172576,0.119892,0.087904,0.086301,0.013014, 0.012742],
         "Naturgy noche luz 3P":[0.185461,0.116414,0.082334,0.108163,0.033392, 0.0104],
+        "Imagina 3P":[0.188000,0.114000,0.079000,0.099000,0.020000, 0.012742],
         "TE A tu aire programa tu ahorro 3P":[0.188041,0.116220,0.080428,0.071918,0.071890, 0.012742],
-        "ENERGYA VM 3P":[0.195500,0.122400,0.092650,0.082192,0.002739, 0],
-        "Endesa One 3P":[0.196860,0.120310,0.088834,0.112138,0.040267, 0.012742],
-        "Octopus Solar":[0.197000,0.122000,0.084000,0.095000,0.027000, 0.01],
-        "Imagina 3P":[0.199000,0.125000,0.090000,0.099000,0.020000, 0.012742]}
+        "Octopus 3P":[0.192000,0.117000,0.080000,0.095000,0.027000, 0.01],
+        "Endesa One 3P":[0.193860,0.117310,0.085834,0.112138,0.040267, 0.012742],
+        "ENERGYA VM 3P":[0.195500,0.122400,0.092650,0.082192,0.002739, 0]}
     
 
     def __init__(self):
@@ -247,6 +247,8 @@ class Iber:
         if not response.text:
             raise NoResponseException
         json_response = response.json()
+        if len(json_response['facturas']) == 0:
+            raise NoIDEdataException
         return json_response['facturas'][index]
 
     def get_last_day_with_recorded_data(self):
@@ -511,35 +513,41 @@ class Iber:
         if not response.text:
             raise NoResponseException
         json_response = response.json()
-        max_date = datetime.strptime(json_response['fecMax'], '%d-%m-%Y%H:%M:%S')
+        if json_response['resultado'] == 'correcto':
+            max_date = datetime.strptime(json_response['fecMax'], '%d-%m-%Y%H:%M:%S')
+        elif json_response['resultado'] == 'ER_1B':
+            max_date = "ERROR"
         return max_date
 
     def get_power_peaks(self):
         self.__check_session()
         max_date = self.get_power_peaks_max_date()
-        max_date_month = max_date.month
-        max_date_year = max_date.year
-        ayearago_month = max_date.month
-        ayearago_year = max_date.year - 1
-        response = self.__session.request("GET", self.__power_peak_url.format(str(ayearago_month)+"-"+str(ayearago_year),str(max_date_month)+"-"+str(max_date_year)), headers=self.__headers_i_de)
-        if response.status_code != 200:
-            raise ResponseException
-        if not response.text:
-            raise NoResponseException
-        json_response = response.json()
-        print("[POTENCIAS MAXIMAS PERIODO " + str(ayearago_month)+"-"+str(ayearago_year) + " A " + str(max_date_month)+"-"+str(max_date_year) + "]\n")
-        print("\t   VALLE,PUNTA\n")
-        try:
-            for i in range(len(json_response["potMaxMens"])):
-                title = json_response["potMaxMens"][i][0]["name"][3:11] + " "
-                pot_low = str(json_response["potMaxMens"][i][0]["y"]) + "w, "
-                pot_low = " -------, " if "None" in pot_low else pot_low
-                pot_high = str(json_response["potMaxMens"][i][1]["y"]) + "w"
-                pot_high = "-------" if "None" in pot_high else pot_high
-                print(title + pot_low + pot_high)
-            print("\n")
-        except:
-            print("No power data available\n\n")               
+        if max_date != "ERROR":
+            max_date_month = max_date.month
+            max_date_year = max_date.year
+            ayearago_month = max_date.month
+            ayearago_year = max_date.year - 1
+            response = self.__session.request("GET", self.__power_peak_url.format(str(ayearago_month)+"-"+str(ayearago_year),str(max_date_month)+"-"+str(max_date_year)), headers=self.__headers_i_de)
+            if response.status_code != 200:
+                raise ResponseException
+            if not response.text:
+                raise NoResponseException
+            json_response = response.json()
+            print("[POTENCIAS MAXIMAS PERIODO " + str(ayearago_month)+"-"+str(ayearago_year) + " A " + str(max_date_month)+"-"+str(max_date_year) + "]\n")
+            print("\t   VALLE,PUNTA\n")
+            try:
+                for i in range(len(json_response["potMaxMens"])):
+                    title = json_response["potMaxMens"][i][0]["name"][3:11] + " "
+                    pot_low = str(json_response["potMaxMens"][i][0]["y"]) + "w, "
+                    pot_low = " -------, " if "None" in pot_low else pot_low
+                    pot_high = str(json_response["potMaxMens"][i][1]["y"]) + "w"
+                    pot_high = "-------" if "None" in pot_high else pot_high
+                    print(title + pot_low + pot_high)
+                print("\n")
+            except:
+                print("No power data available\n\n")   
+        else:
+            print("No power data available\n\n")			
         return
 
     def comparator(self):
@@ -563,11 +571,12 @@ class Iber:
                     if start_date != end_date:
                         vat_value = vat.get_iva(end_date.year,end_date.month)
                         input_char = "M"
+                        highlight = ["PVPC 2.0TD", "Nufri CN023 3P", "Iberdrola Online 3P"]
                         while input_char.upper() in ["M", "M".encode()]:
                             if mode == 0: #comparison of 3 with pretty print
-                                c1 = self.calculate_invoice(start_date, end_date, pot, p1, p2, p3, vat_value, "PVPC 2.0TD")
-                                c2 = self.calculate_invoice(start_date, end_date, pot, p1, p2, p3, vat_value, "Nufri CN023 3P")
-                                c3 = self.calculate_invoice(start_date, end_date, pot, p1, p2, p3, vat_value, "Naturgy Tarifa Compromiso")
+                                c1 = self.calculate_invoice(start_date, end_date, pot, p1, p2, p3, vat_value, highlight[0])
+                                c2 = self.calculate_invoice(start_date, end_date, pot, p1, p2, p3, vat_value, highlight[1])
+                                c3 = self.calculate_invoice(start_date, end_date, pot, p1, p2, p3, vat_value, highlight[2])
                                 header = [i, start_date, end_date, pot, p1, p2, p3] + energy_calcs
                                 self.print_3comparison(header, c1, c2, c3)
 
@@ -594,7 +603,10 @@ class Iber:
                                             elif index == len(output) - 1:
                                                 output.append(res)
                                 for company in output:
-                                    print("    " + str(company))
+                                    if company[0] in highlight:
+                                        print("->  " + str(company) + " <-")
+                                    else:
+                                        print("    " + str(company))
                             print("\n##########  PULSE (M)CAMBIAR MODO. (ESPACIO)CERRAR. (OTRA TECLA)CONTINUAR  ###########", end="")
                             input_char = getch()
                             print("\n")
