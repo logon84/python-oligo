@@ -1,18 +1,13 @@
 from requests import Session
-from datetime import datetime
-from io import StringIO
-from dateutil.relativedelta import relativedelta
+import datetime
 from . import vat
 import calendar
 from decimal import Decimal
 import aiohttp
 import asyncio
 import sys
-import unidecode
-import glob
 from pathlib import Path
 import traceback
-
 
 
 try:
@@ -66,17 +61,22 @@ class Iber:
     __ps_info_url_2 = __domain + "/consumidores/rest/detalleCto/opcionFE/"
     __power_peak_dates_url = __domain + "/consumidores/rest/consumoNew/obtenerLimitesFechasPotencia/"
     __power_peak_url = __domain + "/consumidores/rest/consumoNew/obtenerPotenciasMaximasRangoV2/01-{0}00:00:00/01-{1}00:00:00"
-    today = datetime.now()
-    twoyearsago =  today - relativedelta(years=2)
+    today = datetime.datetime.now()
+    twoyearsago =  today - datetime.timedelta(days=730)
     __invoice_list_url = __domain + "/consumidores/rest/consumoNew/obtenerDatosFacturasConsumo/fechaInicio/{0}/fechaFinal/{1}".format(twoyearsago.strftime("%d-%m-%Y%H:%M:%S"),today.strftime("%d-%m-%Y%H:%M:%S"))
     __consumption_max_date_url = __domain + "/consumidores/rest/consumoNew/obtenerLimiteFechasConsumo"
-    __consumption_between_dates_csv_url = __domain + "/consumidores/rest/consumoNew/exportarACSVPeriodoConsumo/fechaInicio/{0}00:00:00/fechaFinal/{1}00:00:00/tipo/horaria/"
-    __consumption_by_invoice_csv_url = __domain + "/consumidores/rest/consumoNew/exportarACSV/factura/{0}/fechaInicio/{1}00:00:00/fechaFinal/{2}23:59:59/modo/R"
+    __consumption_between_dates_url = __domain + "/consumidores/rest/consumoNew/obtenerDatosConsumoPeriodo/fechaInicio/{0}00:00:00/fechaFinal/{1}00:00:00/"
+    __consumption_by_invoice_url = __domain + "/consumidores/rest/consumoNew/obtenerDatosConsumoFacturado/numFactura/{0}/fechaDesde/{1}00:00:00/fechaHasta/{2}00:00:00/"
     __headers_i_de = {
-        'User-Agent': "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Ubuntu Chromium/77.0.3865.90 Chrome/77.0.3865.90 Safari/537.36",
-        'accept': "application/json; charset=utf-8",
-        'content-type': "application/json; charset=utf-8",
-        'cache-control': "no-cache"
+        "Content-Type": "application/json; charset=utf-8",
+        "esVersionNueva": "1",
+        "idioma": "es",
+        "movilAPP": "si",
+        "tipoAPP": "ios",
+        "User-Agent": (
+            "Mozilla/5.0 (iPhone; CPU iPhone OS 11_4_1 like Mac OS X) "
+            "AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15G77"
+            ),
     }
 
     __ree_api_url = "https://api.esios.ree.es/indicators/{0}?start_date={1}T00:00:00&end_date={2}T23:00:00"
@@ -91,28 +91,27 @@ class Iber:
     COMPANY_DB = {
         #e_high, e_mid, e_low, p_high, p_low, social_bonus
         "PVPC 2.0TD":[0, 0, 0, 0.090411 ,0.046575, 0.012742],
-        "Plenitude (<5 kW)":[0.099092,0.099092,0.099092,0.073806,0.073806, 0],
-        "ENERGYA VM":[0.099125,0.099125,0.099125,0.093150,0.046576, 0],
         "Visalia":[0.108995,0.108995,0.108995,0.060273,0.060273, 0.006282],
         "Imagina":[0.113000,0.113000,0.113000,0.087000,0.044000, 0.012742],
-        "Gana Energía":[0.113600,0.113600,0.113600,0.127406,0.049264,0.012742],
+        "Iberdrola Online":[0.11300,0.11300,0.11300,0.108192,0.046548, 0.012742],
         "Nufri CN023":[0.115332,0.115332,0.115332,0.084193,0.032596, 0.012742],
         "Octopus Relax":[0.118000,0.118000,0.118000,0.095000,0.027000, 0.01],
-        "TE A tu aire siempre":[0.119000,0.119000,0.119000, 0.071904, 0.071904, 0.012742],
-        "Naturgy por uso":[0.119166,0.119166,0.119166,0.108163,0.033392, 0.0104],
-        "Iberdrola Online":[0.124900,0.124900,0.124900,0.095890,0.046548, 0.012742],
-        "Endesa One":[0.126000,0.126000,0.126000,0.112138,0.040267, 0.012742],
+        "ENERGYA VM":[0.118150,0.118150,0.118150,0.093150,0.046576, 0],
+        "Naturgy por uso NEW":[0.119166,0.119166,0.119166,0.108163,0.033392, 0.0104],
+        "Endesa One":[0.123200,0.123200,0.123200,0.112138,0.040267, 0.012742],
+        "Plenitude (<5 kW)":[0.127668,0.127668,0.127668,0.073806,0.073806, 0],
+        "TE A tu aire siempre":[0.129000,0.129000,0.129000, 0.071904, 0.071904, 0.012742],
         "Repsol":[0.129900,0.129900,0.129900,0.068219,0.068219, 0.012742],
+        "Gana Energía":[0.13500,0.13500,0.13500,0.127406,0.049264,0.012742],
         "Naturgy Tarifa Compromiso":[0.140515 ,0.140515 ,0.140515 ,0.053005 ,0.044744, 0.012742],
-        "Endesa Libre":[0.147500,0.147500,0.147500,0.112138,0.040267, 0.012742],
-        "Nufri CN023 3P":[0.176079,0.106312,0.074711,0.084193,0.032596, 0.012742],
         "Iberdrola Online 3P":[0.172576,0.119892,0.087904,0.086301,0.013014, 0.012742],
+        "Iberdrola Online 3P NEW":[0.175576,0.122892,0.090904,0.086301,0.013014, 0.012742],
+        "Nufri CN023 3P":[0.176079,0.106312,0.074711,0.084193,0.032596, 0.012742],
+        "ENERGYA VM 3P":[0.178500,0.136000,0.093500,0.082192,0.002739, 0],
         "Naturgy noche luz 3P":[0.185461,0.116414,0.082334,0.108163,0.033392, 0.0104],
         "Imagina 3P":[0.188000,0.114000,0.079000,0.099000,0.020000, 0.012742],
-        "TE A tu aire programa tu ahorro 3P":[0.188041,0.116220,0.080428,0.071918,0.071890, 0.012742],
         "Octopus 3P":[0.192000,0.117000,0.080000,0.095000,0.027000, 0.01],
-        "Endesa One 3P":[0.193860,0.117310,0.085834,0.112138,0.040267, 0.012742],
-        "ENERGYA VM 3P":[0.195500,0.122400,0.092650,0.082192,0.002739, 0]}
+        "TE A tu aire programa tu ahorro 3P":[0.194972,0.126441,0.092088,0.071918,0.071890, 0.012742]}
     
 
     def __init__(self):
@@ -122,8 +121,8 @@ class Iber:
     def login(self, user, password):
         """Creates session with your credentials"""
         self.__session = Session()
-        login_data = "[\"{}\",\"{}\",null,\"Linux -\",\"PC\",\"Chrome 77.0.3865.90\",\"0\",\"\",\"s\", null, null, \"{}\"]"
-        response = self.__session.request("POST", self.__login_url, data=login_data.format(user, password, None), headers=self.__headers_i_de)
+        login_data = "[\"{}\",\"{}\",null,\"Android 6.0\",\"Móvil\",\"Chrome 119.0.0.0\",\"0\",\"\",\"s\", null, null, \"{}\"]"
+        response = self.__session.request("POST", self.__login_url, data=login_data.format(user, password, None), headers=self.__headers_i_de, timeout=10)
         if response.status_code != 200:
             self.__session = None
             raise ResponseException("Response error, code: {}".format(response.status_code))
@@ -260,7 +259,7 @@ class Iber:
         if not response.text:
             raise NoResponseException
         json_response = response.json()
-        max_date = datetime.strptime(json_response['fechaMaxima'], '%d-%m-%Y%H:%M:%S')
+        max_date = datetime.datetime.strptime(json_response['fechaMaxima'], '%d-%m-%Y%H:%M:%S')
         return max_date
 
     def get_hourly_consumption(self,start_date,end_date):
@@ -269,53 +268,36 @@ class Iber:
         max_date = self.get_last_day_with_recorded_data()
         if end_date > max_date:
             end_date = max_date
-        response = self.__session.request("GET", self.__consumption_between_dates_csv_url.format(start_date.strftime('%d-%m-%Y'),end_date.strftime('%d-%m-%Y')), headers=self.__headers_i_de)
+        response = self.__session.request("GET", self.__consumption_between_dates_url.format(start_date.strftime('%d-%m-%Y'),end_date.strftime('%d-%m-%Y')), headers=self.__headers_i_de)
         if response.status_code != 200:
             raise ResponseException
         if not response.text:
             raise NoResponseException
         kwh = []
-        csvdata = StringIO(response.text)
-        next(csvdata)
-        last_date = start_date
-        for line in csvdata:
-            #spaguetti.run!!
-            if int(line.split(";")[2]) == 25:
-                #OCTOBER HOUR FIX
-                current_date = datetime.strptime(line.split(";")[1] + " " + "23" + ":00", '%d/%m/%Y %H:%M')
+        missing = 0
+        for x in response.json()['y']['data'][0]:
+            if x is None:
+                kwh.append(0)
+                missing = missing + 1
             else:
-                current_date = datetime.strptime(line.split(";")[1] + " " + str(int(line.split(";")[2]) - 1) + ":00", '%d/%m/%Y %H:%M')
-                if not(current_date == last_date + relativedelta(hours=1)) and not(current_date == last_date):
-                    #NOT(current hour is consecutive to previous)
-                    #value missing detected, fill with 0's
-                    counter = 0
-                    while current_date > (last_date + relativedelta(hours=1)):
-                        kwh.append(0)
-                        last_date = last_date + relativedelta(hours=1)
-                        counter = counter + 1
-                    print("----------------ATENCION: FALTAN ALGUNOS VALORES DE CONSUMO EN ESTA SIMULACION-----------------(" + str(counter) + ")")
-            kwh.append(float(line.split(";")[3].replace(',','.')))
-            last_date = current_date
-            if current_date.month == 3 and current_date.day in range (25,32) and current_date.isoweekday() == 7 and current_date.hour == 22:
-                #MARCH HOUR FIX
-                last_date = last_date + relativedelta(hours=1)
+                kwh.append(float(x['valor'])/1000)
+        if missing > 0:
+            print("----------------ATENCION: FALTAN ALGUNOS VALORES DE CONSUMO EN ESTA SIMULACION-----------------(" + str(missing) + ")")
         return [kwh, [1 for i in range(len(kwh))]]
 
     def get_hourly_consumption_by_invoice(self,invoice_number,start_date,end_date):
         """Returns hour consumption by invoice.This DOES return R and E consumptions, so it's better for costs comparison"""
         self.__check_session()
-        response = self.__session.request("GET", self.__consumption_by_invoice_csv_url.format(invoice_number,start_date.strftime('%d-%m-%Y'),end_date.strftime('%d-%m-%Y')), headers=self.__headers_i_de)
+        response = self.__session.request("GET", self.__consumption_by_invoice_url.format(invoice_number,start_date.strftime('%d-%m-%Y'),end_date.strftime('%d-%m-%Y')), headers=self.__headers_i_de)
         if response.status_code != 200:
             raise ResponseException
         if not response.text:
             raise NoResponseException
         kwh = []
         real_reads_mask = []
-        csvdata = StringIO(response.text)
-        next(csvdata)
-        for line in csvdata:
-            kwh.append(float(line.split(";")[3].replace(',','.')))
-            real_reads_mask.append(int("R" in line.split(";")[4]))
+        for x in response.json()['y']['data'][0]:
+            kwh.append(float(x['valor'])/1000)
+            real_reads_mask.append(int("R" in x['tipo']))
         return [kwh, real_reads_mask]
 
     def get_consumption_details(self,index):
@@ -324,9 +306,9 @@ class Iber:
         real_reads = []
         if index == 0: #get current cost
             last_invoice = self.get_invoice(0) #get last invoice
-            start_date = datetime.strptime(last_invoice['fechaHasta'], '%d/%m/%Y') + relativedelta(days=1) #get last day used in the last invoice to use next day as starting day for current cost
+            start_date = datetime.datetime.strptime(last_invoice['fechaHasta'], '%d/%m/%Y') + datetime.timedelta(days=1) #get last day used in the last invoice to use next day as starting day for current cost
             end_date = self.get_last_day_with_recorded_data()
-            if end_date <= datetime.strptime(last_invoice['fechaHasta'], '%d/%m/%Y'):
+            if end_date <= datetime.datetime.strptime(last_invoice['fechaHasta'], '%d/%m/%Y'):
             #no hourly consumption since last invoice
                 end_date = start_date
                 return start_date, end_date, 0, 0, 0, [0, 0, 0, 0, 0, 0]			
@@ -334,8 +316,8 @@ class Iber:
                 energy_reads = self.get_hourly_consumption(start_date,end_date)
         else:
             invoice = self.get_invoice(index-1)
-            start_date = datetime.strptime(invoice['fechaDesde'], '%d/%m/%Y')
-            end_date = datetime.strptime(invoice['fechaHasta'], '%d/%m/%Y')
+            start_date = datetime.datetime.strptime(invoice['fechaDesde'], '%d/%m/%Y')
+            end_date = datetime.datetime.strptime(invoice['fechaHasta'], '%d/%m/%Y')
             energy_reads = self.get_hourly_consumption_by_invoice(invoice['numero'],start_date,end_date)
 
         period_mask = self.get_ree_data(start_date,end_date, "period_mask")
@@ -396,7 +378,7 @@ class Iber:
         loop = asyncio.get_event_loop()
         results = loop.run_until_complete(asyncio.gather(*parallel_http_get))
         for i in range(len(results[0]['indicator']['values'])):
-            if unidecode.unidecode(results[0]['indicator']['values'][i]['geo_name']) == unidecode.unidecode(ID20TDzone):
+            if results[0]['indicator']['values'][i]['geo_name'].replace("í","i") == ID20TDzone.replace("í","i"):
                 if data_type == "period_mask":
                     data.append(int(results[0]['indicator']['values'][i]['value']))
                 elif data_type == "energy_price":
@@ -514,7 +496,7 @@ class Iber:
             raise NoResponseException
         json_response = response.json()
         if json_response['resultado'] == 'correcto':
-            max_date = datetime.strptime(json_response['fecMax'], '%d-%m-%Y%H:%M:%S')
+            max_date = datetime.datetime.strptime(json_response['fecMax'], '%d-%m-%Y%H:%M:%S')
         elif json_response['resultado'] == 'ER_1B':
             max_date = "ERROR"
         return max_date
@@ -612,7 +594,7 @@ class Iber:
                             print("\n")
                             if input_char.upper() in ["M", "M".encode()]:
                                 mode = not(mode)
-                        if input_char in [" ", " ".encode()]:
+                        if input_char in [" ", " ".encode(), chr(27), chr(27).encode()]:
                             break
                 except Exception:
                     traceback.print_exc()
