@@ -67,14 +67,14 @@ class Iber:
     __consumption_between_dates_url = __domain + "/consumidores/rest/consumoNew/obtenerDatosConsumoPeriodo/fechaInicio/{0}00:00:00/fechaFinal/{1}00:00:00/"
     __consumption_by_invoice_url = __domain + "/consumidores/rest/consumoNew/obtenerDatosConsumoFacturado/numFactura/{0}/fechaDesde/{1}00:00:00/fechaHasta/{2}00:00:00/"
     __headers_i_de = {
-    "Content-Type": "application/json; charset=utf-8",
-    "esVersionNueva": "1",
-    "idioma": "es",
-    "movilAPP": "si",
-    "tipoAPP": "ios",
-    "User-Agent": (
-        "Mozilla/5.0 (iPhone; CPU iPhone OS 11_4_1 like Mac OS X) "
-        "AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15G77"
+        "Content-Type": "application/json; charset=utf-8",
+        "esVersionNueva": "1",
+        "idioma": "es",
+        "movilAPP": "si",
+        "tipoAPP": "ios",
+        "User-Agent": (
+            "Mozilla/5.0 (iPhone; CPU iPhone OS 11_4_1 like Mac OS X) "
+            "AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15G77"
         )
     }
 
