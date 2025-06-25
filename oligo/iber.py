@@ -1,6 +1,5 @@
 from requests import Session
 import datetime
-from . import vat
 import calendar
 from decimal import Decimal
 import aiohttp
@@ -68,15 +67,15 @@ class Iber:
     __consumption_between_dates_url = __domain + "/consumidores/rest/consumoNew/obtenerDatosConsumoPeriodo/fechaInicio/{0}00:00:00/fechaFinal/{1}00:00:00/"
     __consumption_by_invoice_url = __domain + "/consumidores/rest/consumoNew/obtenerDatosConsumoFacturado/numFactura/{0}/fechaDesde/{1}00:00:00/fechaHasta/{2}00:00:00/"
     __headers_i_de = {
-        "Content-Type": "application/json; charset=utf-8",
-        "esVersionNueva": "1",
-        "idioma": "es",
-        "movilAPP": "si",
-        "tipoAPP": "ios",
-        "User-Agent": (
-            "Mozilla/5.0 (iPhone; CPU iPhone OS 11_4_1 like Mac OS X) "
-            "AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15G77"
-            ),
+    "Content-Type": "application/json; charset=utf-8",
+    "esVersionNueva": "1",
+    "idioma": "es",
+    "movilAPP": "si",
+    "tipoAPP": "ios",
+    "User-Agent": (
+        "Mozilla/5.0 (iPhone; CPU iPhone OS 11_4_1 like Mac OS X) "
+        "AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15G77"
+        )
     }
 
     __ree_api_url = "https://api.esios.ree.es/indicators/{0}?start_date={1}T00:00:00&end_date={2}T23:00:00"
@@ -92,12 +91,12 @@ class Iber:
         #e_high, e_mid, e_low, p_high, p_low, social_bonus
         "PVPC 2.0TD":[0, 0, 0, 0.090411 ,0.046575, 0.012742],
         "Visalia":[0.108995,0.108995,0.108995,0.060273,0.060273, 0.006282],
-        "Imagina":[0.113000,0.113000,0.113000,0.087000,0.044000, 0.012742],
+        "Imagina":[0.11000,0.11000,0.11000,0.087000,0.044000, 0.012742],
         "Iberdrola Online":[0.11300,0.11300,0.11300,0.108192,0.046548, 0.012742],
         "Nufri CN023":[0.115332,0.115332,0.115332,0.084193,0.032596, 0.012742],
-        "Octopus Relax":[0.118000,0.118000,0.118000,0.095000,0.027000, 0.01],
         "ENERGYA VM":[0.118150,0.118150,0.118150,0.093150,0.046576, 0],
         "Naturgy por uso NEW":[0.119166,0.119166,0.119166,0.108163,0.033392, 0.0104],
+        "Octopus Relax":[0.122000,0.122000,0.122000,0.095000,0.027000, 0.01],
         "Endesa One":[0.123200,0.123200,0.123200,0.112138,0.040267, 0.012742],
         "Plenitude (<5 kW)":[0.127668,0.127668,0.127668,0.073806,0.073806, 0],
         "TE A tu aire siempre":[0.129000,0.129000,0.129000, 0.071904, 0.071904, 0.012742],
@@ -108,10 +107,10 @@ class Iber:
         "Iberdrola Online 3P NEW":[0.175576,0.122892,0.090904,0.086301,0.013014, 0.012742],
         "Nufri CN023 3P":[0.176079,0.106312,0.074711,0.084193,0.032596, 0.012742],
         "ENERGYA VM 3P":[0.178500,0.136000,0.093500,0.082192,0.002739, 0],
+        "Imagina 3P":[0.184000,0.11000,0.076000,0.099000,0.020000, 0.012742],
         "Naturgy noche luz 3P":[0.185461,0.116414,0.082334,0.108163,0.033392, 0.0104],
-        "Imagina 3P":[0.188000,0.114000,0.079000,0.099000,0.020000, 0.012742],
-        "Octopus 3P":[0.192000,0.117000,0.080000,0.095000,0.027000, 0.01],
-        "TE A tu aire programa tu ahorro 3P":[0.194972,0.126441,0.092088,0.071918,0.071890, 0.012742]}
+        "TE A tu aire programa tu ahorro 3P":[0.194972,0.126441,0.092088,0.071918,0.071890, 0.012742],
+        "Octopus 3P":[0.196000,0.121000,0.084000,0.095000,0.027000, 0.01]}
     
 
     def __init__(self):
@@ -121,7 +120,7 @@ class Iber:
     def login(self, user, password):
         """Creates session with your credentials"""
         self.__session = Session()
-        login_data = "[\"{}\",\"{}\",null,\"Android 6.0\",\"Móvil\",\"Chrome 119.0.0.0\",\"0\",\"\",\"s\", null, null, \"{}\"]"
+        login_data = "[\"{}\",\"{}\",null,\"Windows 10\",\"PC\",\"Chrome 137.0.0.0\",\"0\",\"\",\"s\", null, null, \"{}\"]"
         response = self.__session.request("POST", self.__login_url, data=login_data.format(user, password, None), headers=self.__headers_i_de, timeout=10)
         if response.status_code != 200:
             self.__session = None
@@ -311,7 +310,7 @@ class Iber:
             if end_date <= datetime.datetime.strptime(last_invoice['fechaHasta'], '%d/%m/%Y'):
             #no hourly consumption since last invoice
                 end_date = start_date
-                return start_date, end_date, 0, 0, 0, [0, 0, 0, 0, 0, 0]			
+                return start_date, end_date, 0, 0, 0, [0, 0, 0, 0, 0, 0]
             else:
                 energy_reads = self.get_hourly_consumption(start_date,end_date)
         else:
@@ -344,7 +343,7 @@ class Iber:
             AVERAGE_KWH_H_ESTIM = self.roundup((sum(consumption_kwh)-sum(energy_real_reads))/(len(real_reads_mask)-sum(real_reads_mask)),2)
         except:
              AVERAGE_KWH_H_ESTIM = 0
-        energy_calcs = [PERC_REAL_H, PERC_REAL_KWH, AVERAGE_KWH_H_REAL, PERC_ESTIM_H, PERC_ESTIM_KWH, AVERAGE_KWH_H_ESTIM]		
+        energy_calcs = [PERC_REAL_H, PERC_REAL_KWH, AVERAGE_KWH_H_REAL, PERC_ESTIM_H, PERC_ESTIM_KWH, AVERAGE_KWH_H_ESTIM]
         return start_date, end_date, p1, p2, p3, energy_calcs
 
     async def get(self,url,headers):
@@ -529,7 +528,7 @@ class Iber:
             except:
                 print("No power data available\n\n")   
         else:
-            print("No power data available\n\n")			
+            print("No power data available\n\n")
         return
 
     def comparator(self):
@@ -551,7 +550,7 @@ class Iber:
                     prices3.append(0)
                     start_date, end_date, p1, p2, p3, energy_calcs = self.get_consumption_details(i)
                     if start_date != end_date:
-                        vat_value = vat.get_iva(end_date.year,end_date.month)
+                        vat_value = 0.21
                         input_char = "M"
                         highlight = ["PVPC 2.0TD", "Nufri CN023 3P", "Iberdrola Online 3P"]
                         while input_char.upper() in ["M", "M".encode()]:
