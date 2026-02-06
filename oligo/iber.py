@@ -1,6 +1,7 @@
 from requests import Session
 import datetime
 import calendar
+from io import StringIO
 from decimal import Decimal
 import aiohttp
 import asyncio
@@ -65,6 +66,7 @@ class Iber:
     __consumption_max_date_url = __domain + "/consumidores/rest/consumoNew/obtenerLimiteFechasConsumo"
     __consumption_between_dates_url = __domain + "/consumidores/rest/consumoNew/obtenerDatosConsumoPeriodo/fechaInicio/{0}00:00:00/fechaFinal/{1}00:00:00/"
     __consumption_by_invoice_url = __domain + "/consumidores/rest/consumoNew/obtenerDatosConsumoFacturado/numFactura/{0}/fechaDesde/{1}00:00:00/fechaHasta/{2}00:00:00/"
+    __consumption_by_invoice_url_type2 = __domain + "/consumidores/rest/consumoNew/exportarACSV/factura/{0}/fechaInicio/{1}00:00:00/fechaFinal/{2}23:59:59/modo/R"
     __headers_i_de = {
         "Content-Type": "application/json; charset=utf-8",
         "esVersionNueva": "1",
@@ -74,6 +76,22 @@ class Iber:
         "User-Agent": (
             "Mozilla/5.0 (iPhone; CPU iPhone OS 11_4_1 like Mac OS X) "
             "AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15G77"
+        )
+    }
+    __headers_i_de_type2 = {
+        "Content-Type": "application/json; charset=utf-8",
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        "Accept-Language": "es-ES,es;q=0.9,en-US;q=0.8,en;q=0.7",
+        "Accept-Encoding": "gzip, deflate, br, zstd",
+        "Connection": "keep-alive",
+        "Upgrade-Insecure-Requests": "1",
+        "Sec-Fetch-Dest": "document",
+        "Sec-Fetch-Mode": "navigate",
+        "Sec-Fetch-Site": "same-origin",
+        "Sec-Fetch-User": "?1",
+        "Priority": "u=0, i",
+        "User-Agent": (
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:147.0) Gecko/20100101 Firefox/147.0"
         )
     }
     __ree_api_url = "https://api.esios.ree.es/indicators/{0}?start_date={1}T00:00:00&end_date={2}T23:00:00"
@@ -87,24 +105,42 @@ class Iber:
 
     COMPANY_DB = {
         #e_high, e_mid, e_low, p_high, p_low, social_bonus
-        "PVPC 2.0TD":[0, 0, 0, 0.090411 ,0.046575, 0.012742],
-        "ENERGYA VM":[0.099580,0.099580,0.099580,0.093150,0.046576, 0],
-        "Visalia":[0.108995,0.108995,0.108995,0.054794,0.054794, 0.006282],
-        "Octopus Relax":[0.119000,0.119000,0.119000,0.095000,0.027000, 0.01],
-        "TE A tu aire siempre":[0.119000,0.119000,0.119000, 0.071219, 0.071219, 0.012742],
-        "Naturgy por uso NEW":[0.119166,0.119166,0.119166,0.108163,0.033392, 0.0104],
-        "Plenitude (<5 kW)":[0.119191,0.119191,0.119191,0.073806,0.073806, 0],
-        "Iberdrola Online":[0.119900,0.119900,0.119900,0.108192,0.046548, 0.012742],
-        "Endesa Conecta":[0.119900,0.119900,0.119900,0.090871,0.090871, 0.012742],
-        "Endesa One":[0.119900,0.119900,0.119900,0.090871,0.090871, 0.012742],
-        "Repsol":[0.129900,0.129900,0.129900,0.068219,0.068219, 0.012742],
-        "Nufri Sin Horarios":[0.153561,0.153561,0.153561,0.073782,0.001911, 0.012742],
-        "Iberdrola Online 3P":[0.172576,0.119892,0.087904,0.086301,0.013014, 0.012742],
-        "Iberdrola Online 3P NEW":[0.181076,0.128392,0.096404,0.086301,0.013014, 0.012742],
-        "Endesa One 3P":[0.183674,0.114779,0.086450,0.090871,0.090871, 0.012742],
-        "Naturgy noche luz 3P":[0.185461,0.116414,0.082334,0.108163,0.033392, 0.0104],
-        "TE A tu aire programa tu ahorro 3P":[0.186345,0.116294,0.081371,0.071233,0.071205, 0.012742],
-        "Octopus 3P":[0.191000,0.116000,0.079000,0.095000,0.027000, 0.01]}
+        "PVPC 2.0TD":[0, 0, 0, 0.090411 ,0.046575, 0.019121],
+        "Endesa Conecta":[0.099900,0.099900, 0.099900,0.093666,0.093666, 0.019121],
+        "Plenitude":[0.100881,0.100881,0.100881,0.089528,0.089528, 0],
+        "IBERDROLA PROMO":[0.099867,0.099867,0.099867,0.113671,0.065726, 0.019121],
+        "Visalia":[0.101995,0.101995,0.101995,0.060274,0.060274, 0.006282],
+        "Nufri Calma":[0.103386,0.103386,0.103386,0.094533,0.046371, 0.019121],
+        "Imagina Energia":[0.105000,0.105000,0.105000, 0.087000, 0.044000, 0.019121],
+        "ENERGYA VM":[0.105705,0.105705,0.105705,0.093150,0.046576, 0],
+        "TE A tu aire siempre":[0.109900,0.109900,0.109900, 0.072589, 0.072589, 0.019121],
+        "Iberdrola Online":[0.109900,0.109900,0.109900,0.108192,0.057507, 0.019121],
+        "Seneo 2":[0.111000,0.111000,0.111000, 0.089000, 0.089000, 0.019121],
+        "Gana Energia":[0.111000,0.111000,0.111000, 0.089434, 0.089434, 0.019121],
+        "Octopus Unicaja":[0.116000,0.116000,0.116000,0.097000,0.027000, 0.01],
+        "Niba Zen":[0.118000,0.118000,0.118000,0.097000,0.047000, 0.019121],
+        "Neolux 24h":[0.119000,0.119000,0.119000, 0.095000, 0.059000, 0.019121],
+        "Naturgy por uso NEW":[0.119900,0.119900,0.119900,0.110970,0.033677, 0.0104],
+        "Endesa One":[0.121223,0.121223,0.121223,0.093666,0.093666, 0.019121],
+        "Repsol":[0.129900,0.129900,0.129900,0.068219,0.068219, 0.019121],
+        "Seneo 1":[0.146000,0.146000,0.146000, 0.095000, 0.018000, 0.019121],
+        "Endesa One 3P":[0.147600,0.079200,0.055800,0.090214,0.090214, 0.019121],
+        "Seneo 2 3P":[0.163000,0.096000,0.072000,0.089000,0.089000, 0.019121],
+        "Gana Energia 3P":[0.163000, 0.096000, 0.072000, 0.089400, 0.089400, 0.019121],
+        "ENERGYA VM 3P":[0.166050,0.130050,0.103050,0.082192,0.002739, 0],
+        "Nufri Flex":[0.168687, 0.093465, 0.059869, 0.094533,0.046371, 0.019121],
+        "TE A tu aire 3P":[0.173572,0.103930,0.076176,0.072603,0.072575, 0.019121],
+        "Imagina Energia 3P":[0.177000, 0.103000, 0.069000, 0.101000, 0.022000, 0.019121],
+        "Neolux 3P":[0.179000,0.125000,0.079000, 0.095000, 0.059000, 0.019121],
+        "EsLuz 3P":[0.182000,0.134000,0.085000,0.080247,0.007407, 0.019121],
+        "Octopus Unicaja 3P":[0.188000, 0.113000, 0.077000, 0.097000, 0.027000, 0.01],
+        "Naturgy noche 3P":[0.189562,0.116955,0.082281,0.110970,0.033677, 0.0104],
+        "Iberdrola Online 3P":[0.182906,0.124620,0.090890,0.091074, 0.013483, 0.019121],
+        "Iberdrola Online 3P NEW":[0.191661, 0.133374, 0.099645, 0.091074, 0.013483, 0.019121],
+        "Niba 3P":[0.195000,0.116000,0.079000,0.097000,0.047000, 0.019121],
+        "Iberdrola Solar 3P":[0.203000, 0.123000, 0.079000, 0.086301, 0.042466, 0.019121],
+        "Seneo 1 3P":[0.210000,0.138000,0.106000,0.095000,0.018000, 0.019121],
+        "CHC VE 3P":[0.224003,0.220099,0.059339,0.088956,0.088382, 0.019121] }
     
 
     def __init__(self):
@@ -302,19 +338,25 @@ class Iber:
     def get_hourly_consumption_by_invoice(self,invoice_number,start_date,end_date):
         """Returns hour consumption by invoice.This DOES return R and E consumptions, so it's better for costs comparison"""
         self.__check_session()
-        response = self.__session.request("GET", self.__consumption_by_invoice_url.format(invoice_number,start_date.strftime('%d-%m-%Y'),end_date.strftime('%d-%m-%Y')), headers=self.__headers_i_de)
+        response = self.__session.request("GET", self.__consumption_by_invoice_url_type2.format(invoice_number,start_date.strftime('%d-%m-%Y'),end_date.strftime('%d-%m-%Y')), headers=self.__headers_i_de_type2)
         if response.status_code != 200:
+            print("STATUS CODE: " + str(response.status_code))
             raise ResponseException
         if not response.text:
             raise NoResponseException
         kwh = []
         real_reads_mask = []
-        for x in response.json()['y']['data'][0]:
-            kwh.append(float(x['valor'])/1000)
-            real_reads_mask.append(int("R" in x['tipo']))
+        #for x in response.json()['y']['data'][0]:
+        #    kwh.append(float(x['valor'])/1000)
+        #    real_reads_mask.append(int("R" in x['tipo']))
+        csvdata = StringIO(response.text)
+        next(csvdata)
+        for line in csvdata:
+            kwh.append(float(line.split(";")[3].replace(',','.')))
+            real_reads_mask.append(int("R" in line.split(";")[4]))
         return [kwh, real_reads_mask]
 
-    def get_hourly_consumption_by_csv(self,csv_name):
+    def get_hourly_consumption_by_local_csv(self,csv_name):
         """Returns hour consumption by reading local csv file."""
         kwh = []
         real_reads_mask = []
@@ -337,7 +379,7 @@ class Iber:
     def get_consumption_details(self,index,local=0):
         """Returns detailed consumptions. Index 0 means current consumption not yet invoiced. Bigger indexes returns consumption by every already created invoice"""
         if local:
-            start_date, end_date, energy_reads = self.get_hourly_consumption_by_csv(index)
+            start_date, end_date, energy_reads = self.get_hourly_consumption_by_local_csv(index)
         else:
             self.__check_session()
             if index == 0: #get current cost
@@ -411,7 +453,8 @@ class Iber:
             url_0 = self.__ree_api_url.format(IDhourtype,start_date.strftime('%Y-%m-%d'),end_date.strftime('%Y-%m-%d'))
 
         parallel_http_get = [self.get(url_0, self.__headers_ree)]
-        loop = asyncio.get_event_loop()
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
         results = loop.run_until_complete(asyncio.gather(*parallel_http_get))
         for i in range(len(results[0]['indicator']['values'])):
             if results[0]['indicator']['values'][i]['geo_name'].replace("í","i") == ID20TDzone.replace("í","i"):
@@ -455,8 +498,8 @@ class Iber:
                 avg_price_energy_20td_price_low += self.roundup((p2[i]*energy_20td_price[i])/sum(p2),6)
                 avg_price_energy_20td_price_superlow +=  self.roundup((p3[i]*energy_20td_price[i])/sum(p3),6)
 
-            pot_toll= [22.958932, 0.442165]
-            pot_tax = [3.971618, 0.255423]
+            pot_toll= [23.324952, 0.443770]
+            pot_tax = [4.379461, 0.281653]
             power_toll_tax_cost_low = self.roundup(pot_low * ((end_date - start_date).days + 1) * pot_toll[1]/(365 + int(calendar.isleap(start_date.year))), 2) + self.roundup(pot_low * ((end_date - start_date).days + 1) * pot_tax[1]/(365 + int(calendar.isleap(start_date.year))), 2)
             power_toll_tax_cost_peak = self.roundup(pot_high * ((end_date - start_date).days + 1) * pot_toll[0]/(365 + int(calendar.isleap(start_date.year))), 2) + self.roundup(pot_high * ((end_date - start_date).days + 1) * pot_tax[0]/(365 + int(calendar.isleap(start_date.year))), 2)
             power_margin = self.roundup(max(pot_high,pot_low) * days_365 * 3.113/365, 2) + self.roundup(max(pot_high,pot_low) * days_366 * 3.113/366, 2)
@@ -553,7 +596,7 @@ class Iber:
                 raise NoResponseException
             json_response = response.json()
             print("[POTENCIAS MAXIMAS PERIODO {}-{} A {}-{}]\n".format(str(ayearago_month),str(ayearago_year),str(max_date_month),str(max_date_year)))
-            print("\t   PUNTA,VALLE\n")
+            print("\tPUNTA,VALLE\n")
             debug = "Fecha;Pot Punta;Pot Valle;\n"
             try:
                 for i in range(len(json_response["potMaxMens"])):
@@ -575,7 +618,7 @@ class Iber:
             print("No power data available..\n\n")
         return
 
-    def comparator(self,name0="PVPC 2.0TD", name1="Nufri Sin Horarios", name2="Iberdrola Online 3P", local=0):
+    def comparator(self,name0="PVPC 2.0TD", name1="Iberdrola Online 3P", name2="Visalia", local=0):
         global debug
         debug = debug + "\n\n\n{};{};{};\n".format(name0,name1,name2)
         input_pot = input("Introduza la potencia en KW con la que desea simular el cálculo, o pulse ENTER si desea simular con la potencia actualmente contratada (pot or pot_high;pot_low):")
